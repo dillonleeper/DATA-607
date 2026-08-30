@@ -14,6 +14,12 @@ For the assignment, I plan to select a smaller set of useful columns, rename som
 
 One data challenge I expect is handling cancelled orders. Any InvoiceNo that starts with C represents a cancellation. If those transactions are not identified and handled correctly before analysis, they could distort sales-related results.
 
-**Dataset source:** [UCI Machine Learning Repository, Online Retail](https://archive.ics.uci.edu/dataset/352/online+retail?utm_source=chatgpt.com)
+**Dataset source:** [UCI Machine Learning Repository, Online Retail](https://archive.ics.uci.edu/dataset/352/online+retail)
 
 **Dataset:** Online Retail dataset
+
+## AI Assistance
+
+AI assistance: ChatGPT was used during development of this assignment. The complete interaction transcript is included in `ai-transcript.md`.
+
+**AI tool citation:** OpenAI. (2026). ChatGPT (GPT-5.6 Sol) [Large language model]. Accessed August 30, 2026.
