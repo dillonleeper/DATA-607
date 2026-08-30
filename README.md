@@ -1,15 +1,13 @@
-# DATA 607 — Data Acquisition and Management
+# DATA 607 Data Acquisition and Management
 
 Fall 2026 coursework for CUNY SPS DATA 607.
 
-This repository will contain assignment and project source files, code, and supporting materials used to produce reproducible course deliverables.
+I’ll use this repo for assignments, projects, code, and other course files throughout the semester.
 
 ## Structure
 
-- `assignments/` — weekly assignment work
-- `projects/` — course projects
-- `final-project/` — final project materials
+- `assignments/` for weekly assignments
+- `projects/` for course projects
+- `final-project/` for final project work
 
-Primary authoring format: Quarto (`.qmd`).
-
-Rendered reports may be published to RPubs or stored as HTML when required for submission.
+Most of my written work will be in Quarto (`.qmd`) files. I may also publish rendered reports to RPubs or include HTML files when needed for submission.
