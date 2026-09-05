@@ -199,3 +199,17 @@ I would **not use screenshots** unless the syllabus explicitly requests them. A 
 
 ### ChatGPT
 Created this transcript, added it to `assignments/week01/`, and added the AI assistance disclosure and tool citation to the Assignment 1 `.qmd` and rendered HTML.
+
+---
+
+## Code Base development transcript
+
+**Tool:** ChatGPT / Codex  
+**Used for:** interpreting the Code Base requirements; creating and reviewing the R/Quarto workflow; diagnosing YAML, chunk, rendering, and RPubs issues; checking reproducibility; and preparing the GitHub and Brightspace submissions  
+**Dates:** September 1-4, 2026
+
+The complete Code Base conversation, including every user prompt and assistant response, is preserved in this immutable exported conversation:
+
+**Complete conversation:** <https://chatgpt.com/s/cx_6a9b7255e4e081919bdabfeea7e00ae7>
+
+This conversation record includes the assignment instructions and referenced-file context, all troubleshooting exchanges, the final document review, the GitHub update, and the RPubs publishing guidance used to complete the Week 1 Code Base deliverable.
