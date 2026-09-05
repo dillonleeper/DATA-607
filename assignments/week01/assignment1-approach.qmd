@@ -1,25 +1,160 @@
 ---
-title: "Week 1 Assignment: Approach"
-format: html
-editor: visual
+title: "Week 1 Assignment: Code Base"
+author: "Dillon Leeper"
+format:
+  html:
+    toc: true
+    code-fold: show
+editor_options:
+  markdown:
+    wrap: sentence
 ---
+
+## Introduction
+
+This assignment uses the [Online Retail dataset from the UCI Machine Learning Repository](https://archive.ics.uci.edu/dataset/352/online+retail), which contains transactions from a UK-based e-commerce store between December 2010 and December 2011.
+The goal is to load the original data reproducibly, select and rename useful columns, and create fields that make cancellations and transaction values easier to analyze.
 
 ## Approach
 
-For this assignment, I plan to use the Online Retail dataset from the UCI Machine Learning Repository. The dataset contains transaction data from a UK-based online retailer and includes information such as invoice number, product code and description, quantity, invoice date, unit price, customer ID, and country.
+For this assignment, I plan to use the Online Retail dataset from the UCI Machine Learning Repository.
+The dataset contains transaction data from a UK-based online retailer and includes information such as invoice number, product code and description, quantity, invoice date, unit price, customer ID, and country.
 
-I chose this dataset because I work with e-commerce data regularly, so I am already familiar with the type of information it contains. I think it will be useful to work with familiar business data while learning how to load, clean, and transform data in R.
+I chose this dataset because I work with e-commerce data regularly, so I am already familiar with the type of information it contains.
+I think it will be useful to work with familiar business data while learning how to load, clean, and transform data in R.
 
 For the assignment, I plan to select a smaller set of useful columns, rename some of them to make them easier to understand, and create a field that identifies whether an order was cancelled based on the invoice number.
 
-One data challenge I expect is handling cancelled orders. Any InvoiceNo that starts with C represents a cancellation. If those transactions are not identified and handled correctly before analysis, they could distort sales-related results.
+One data challenge I expect is handling cancelled orders.
+Any InvoiceNo that starts with C represents a cancellation.
+If those transactions are not identified and handled correctly before analysis, they could distort sales-related results.
 
 **Dataset source:** [UCI Machine Learning Repository, Online Retail](https://archive.ics.uci.edu/dataset/352/online+retail)
 
 **Dataset:** Online Retail dataset
 
+## Load the data
+
+The original dataset is stored in a ZIP archive on UCI's website.
+The code below downloads that archive to a temporary directory, extracts the Excel workbook, and loads it into R.
+This approach avoids relying on a file stored only on my computer.
+
+```{r setup, message=FALSE, warning=FALSE}
+library(readxl)
+options(width = 100)
+```
+
+```{r load-data}
+data_url <- "https://archive.ics.uci.edu/static/public/352/online+retail.zip"
+
+zip_file <- tempfile(fileext = ".zip")
+data_directory <- tempfile(pattern = "online-retail-")
+dir.create(data_directory)
+
+download.file(data_url, zip_file, mode = "wb", quiet = TRUE)
+unzip(zip_file, exdir = data_directory)
+excel_file <- list.files(
+  data_directory,
+  pattern = "[.]xlsx$",
+  full.names = TRUE
+)[1]
+online_retail_raw <- read_excel(excel_file)
+```
+
+The source data contains `r format(nrow(online_retail_raw), big.mark = ",")` rows and `r ncol(online_retail_raw)` columns.
+
+```{r inspect-source}
+names(online_retail_raw)
+head(online_retail_raw)
+```
+
+## Transform the data
+
+The transformed data frame keeps seven useful source columns and gives them consistent, descriptive names.
+It also adds three fields:
+
+- `is_cancelled` identifies invoices whose number begins with `C`.
+- `line_value_gbp` calculates quantity multiplied by unit price.
+- `transaction_type` provides a readable label for completed purchases and cancellations.
+
+```{r transform-data}
+online_retail <- data.frame(
+  invoice_number = as.character(online_retail_raw$InvoiceNo),
+  product_description = as.character(online_retail_raw$Description),
+  quantity = as.integer(online_retail_raw$Quantity),
+  invoice_date = as.POSIXct(online_retail_raw$InvoiceDate),
+  unit_price_gbp = as.numeric(online_retail_raw$UnitPrice),
+  customer_id = as.character(online_retail_raw$CustomerID),
+  country = as.character(online_retail_raw$Country),
+  stringsAsFactors = FALSE
+)
+online_retail$is_cancelled <- startsWith(
+  toupper(online_retail$invoice_number),
+  "C"
+)
+online_retail$line_value_gbp <-
+  online_retail$quantity * online_retail$unit_price_gbp
+online_retail$transaction_type <- ifelse(
+  online_retail$is_cancelled,
+  "Cancellation",
+  "Completed purchase"
+)
+```
+
+## Verify the result
+
+The following output confirms the structure of the transformed data frame and summarizes its transaction types.
+Keeping cancellations clearly labeled is important because their negative quantities and values could otherwise distort sales totals.
+
+```{r verify-result}
+str(online_retail)
+head(online_retail)
+transaction_summary <- data.frame(
+  transaction_type = names(table(online_retail$transaction_type)),
+  row_count = as.integer(table(online_retail$transaction_type)),
+  row.names = NULL
+)
+transaction_summary$percent_of_rows <- round(
+  100 * transaction_summary$row_count / sum(transaction_summary$row_count),
+  2
+)
+transaction_summary
+```
+
+```{r validation-checks}
+stopifnot(
+  nrow(online_retail) == nrow(online_retail_raw),
+  ncol(online_retail) == 10,
+  all(online_retail$transaction_type %in%
+        c("Cancellation", "Completed purchase")),
+  all(online_retail$is_cancelled ==
+        startsWith(toupper(online_retail$invoice_number), "C"))
+)
+```
+
+## Conclusions
+
+The final data frame is a smaller and more understandable version of the original dataset.
+The analysis identified 9,288 cancellation records, representing 1.71% of all transaction rows.
+It retains the transaction, product, customer, date, price, and country information needed for later analysis while explicitly identifying cancelled transactions and calculating each row's value in British pounds.
+
+As a next step, I could verify how missing customer and product descriptions should be handled, separate valid product sales from returns or data-entry corrections, and aggregate completed revenue by month or country.
+I would keep cancellations separate from completed purchases so that summaries do not accidentally treat both transaction types as ordinary sales.
+
+## Data source
+
+Chen, D.
+(2015).
+*Online Retail* \[Dataset\].
+UCI Machine Learning Repository.
+<https://doi.org/10.24432/C5BW33>
+
 ## AI Assistance
 
-AI assistance: ChatGPT was used during development of this assignment. The complete interaction transcript is included in `ai-transcript.md`.
+AI assistance: ChatGPT was used during development of this assignment.
+The complete interaction transcript is included in `ai-transcript.md`.
 
-**AI tool citation:** OpenAI. (2026). ChatGPT (GPT-5.6 Sol) [Large language model]. Accessed August 30, 2026.
+**AI tool citation:** OpenAI.
+(2026).
+ChatGPT (GPT-5.6 Sol) \[Large language model\].
+Accessed August 30, 2026.
