@@ -1,0 +1,53 @@
+---
+title: "Week 2B Approach: Evaluating Classification Model Performance"
+author: "Dillon Leeper"
+date: "2026-09-10"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Show code"
+    code-tools: true
+    df-print: paged
+    smooth-scroll: true
+    embed-resources: true
+---
+
+## Approach
+
+I plan to use the provided penguin predictions data in R to see how changing the probability threshold affects a binary classification model. I will use `sex` as the actual class and `.pred_female` as the predicted probability of female. I will treat female as the positive class throughout the analysis.
+
+## Check the data and baseline
+
+First, I will load the CSV into R and check the column types, missing values, and class labels. I will also check that `.pred_female` is between 0 and 1. If actual labels or probabilities are missing, I will report how many rows are affected and use the same complete rows for all three threshold comparisons.
+
+I will count the female and male observations and calculate their proportions to check class balance. Then I will calculate the null error rate: the proportion of observations that would be wrong if I always predicted the most common class. This is `1 - proportion in the majority class`. I will compare the model's error rate with that baseline, or compare accuracy with the corresponding majority-class accuracy.
+
+## Compare thresholds
+
+I will create new predicted classes at thresholds of 0.2, 0.5, and 0.8. At each threshold, I will predict female when `.pred_female` is greater than or equal to the threshold and male otherwise. I will derive these predictions from the probabilities instead of reusing `.pred_class` for every threshold.
+
+For each threshold, I will build a confusion matrix comparing the new predictions with `sex`. Using female as the positive class, I will identify true positives, false positives, true negatives, and false negatives. Then I will calculate:
+
+- Accuracy: `(TP + TN) / (TP + TN + FP + FN)`
+- Precision: `TP / (TP + FP)`
+- Recall: `TP / (TP + FN)`
+- F1: `2 * TP / (2 * TP + FP + FN)`
+
+If a metric has a zero denominator, I will report it as undefined (`NA`) and explain why. I will put the metrics for all three thresholds in one table so that the differences are easy to compare.
+
+## What I will discuss
+
+I expect a lower threshold to classify more observations as female. This can help catch more actual positives, but it can also create more false positives. A higher threshold requires a larger predicted probability before assigning the positive class, so it can miss more actual positives. I will use the results to see how precision, recall, and F1 change rather than assuming that the highest threshold is best.
+
+For a low-threshold use case, I will discuss flagging items for a second review when missing a positive would be costly. For a high-threshold use case, I will discuss an alert that triggers a costly action, where false positives would be a bigger concern. I will connect these examples to the confusion matrices and explain why accuracy alone may not be enough to choose a threshold.
+
+## AI disclosure and citation
+
+I used OpenAI's ChatGPT to help organize the analysis plan and draft this document from the assignment instructions. The metrics and comparisons described here are planned work, not completed results. 
+
+AI citation: OpenAI. (2026). *ChatGPT (GPT-5.6 Sol)* [Large language model]. Accessed September 10, 2026. <https://chatgpt.com/>.
+
