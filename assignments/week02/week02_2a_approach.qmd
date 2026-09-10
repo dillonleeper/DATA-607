@@ -1,0 +1,54 @@
+---
+title: "Week 2A Approach: SQL and R – Movie Ratings"
+author: "Dillon Leeper"
+date: "2026-09-10"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Show code"
+    code-tools: true
+    df-print: paged
+    smooth-scroll: true
+    embed-resources: true
+---
+
+## Approach
+
+I plan to collect ratings for *Everything Everywhere All at Once* (2022), *The Batman* (2022), *Hereditary* (2018), *Obsession* (2025), *The Odyssey* (2026), and *Mean Girls* (2024) using Google Forms. I will store the responses in PostgreSQL and bring the data into R for a few simple summaries. I will send the form to friends so that at least five people respond.
+
+For each movie, the form will have rating choices from 1 to 5 and a separate "Haven't seen it" option. I will ask people to rate only movies they have seen. I will use a first name or alias to keep track of responses.
+
+## Database structure
+
+I will use three tables so that I do not have to repeat movie information for every person's rating:
+
+| Table | Planned columns |
+|---|---|
+| `users` | `user_id` (primary key), `name` (first name or alias) |
+| `movies` | `movie_id` (primary key), `title`, `genre`, `duration` (minutes), `release_year` |
+| `ratings` | `user_id`, `movie_id`, `rating` |
+
+In `ratings`, the user and movie IDs will reference the other two tables. Together, they will identify one response per person per movie. Ratings will allow integers from 1 to 5 or SQL `NULL`. I will keep a row for each person/movie combination, including movies the person has not seen.
+
+I will export the Google Forms responses and use them to populate the database. For the implementation, I will provide the SQL needed to create and populate the tables, even if I also use pgAdmin. I will keep database passwords out of my code and GitHub files.
+
+## Missing ratings
+
+I will store "Haven't seen it" responses and unanswered ratings as SQL `NULL`, not zero. Once loaded into R, those values will be treated as `NA`. I will leave them out of average ratings and report the number of actual ratings and missing ratings for each movie. If a movie has no ratings, its average will stay missing. I will not replace missing ratings with made-up scores.
+
+## Loading and summarizing in R
+
+I plan to connect to PostgreSQL using the `DBI` and `RPostgres` packages. I will use `DBI::dbGetQuery()` with a SQL query that joins the three tables and returns an R dataframe. This should let me load the stored data without manually retyping it into R.
+
+I will check that the ratings are in range and that each person/movie pair appears only once. Then I will summarize the average rating and number of ratings for each movie, along with missing counts. I may add a simple bar chart of average ratings. I will keep the small sample size in mind, especially if one movie has only a few ratings.
+
+## AI disclosure and citation
+
+I used OpenAI's ChatGPT to help organize my proposed approach and draft this document from the assignment instructions and my choices. This document describes planned work; no survey responses or analysis results were generated. 
+
+AI citation: OpenAI. (2026). *ChatGPT (GPT-5.6 Sol)* [Large language model]. Accessed September 10, 2026. <https://chatgpt.com/>.
+
