@@ -1,0 +1,216 @@
+---
+title: "Week 2A Assignment: Code Base – Movie Ratings"
+author: "Dillon Leeper"
+date: "2026-09-10"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-tools: true
+    df-print: paged
+    smooth-scroll: true
+    embed-resources: true
+
+execute:
+  warning: false
+  message: false
+
+editor: visual
+---
+
+## Approach
+
+I plan to collect ratings for *Everything Everywhere All at Once* (2022), *The Batman* (2022), *Hereditary* (2018), *Obsession* (2025), *The Odyssey* (2026), and *Mean Girls* (2024) using Google Forms. I will store the responses in PostgreSQL and bring the data into R for a few simple summaries. I will send the form to friends so that at least five people respond.
+
+For each movie, the form will have rating choices from 1 to 5 and a separate "Haven't seen it" option. I will ask people to rate only movies they have seen. I will use a first name or alias to keep track of responses.
+
+## Database structure
+
+I will use three tables so that I do not have to repeat movie information for every person's rating:
+
+| Table | Planned columns |
+|------------------------------------|------------------------------------|
+| `users` | `user_id` (primary key), `name` (first name or alias) |
+| `movies` | `movie_id` (primary key), `title`, `genre`, `duration` (minutes), `release_year` |
+| `ratings` | `user_id`, `movie_id`, `rating` |
+
+In `ratings`, the user and movie IDs will reference the other two tables. Together, they will identify one response per person per movie. Ratings will allow integers from 1 to 5 or SQL `NULL`. I will keep a row for each person/movie combination, including movies the person has not seen.
+
+I will export the Google Forms responses and use them to populate the database. For the implementation, I will provide the SQL needed to create and populate the tables, even if I also use pgAdmin. I will keep database passwords out of my code and GitHub files.
+
+## Missing ratings
+
+I will store "Haven't seen it" responses and unanswered ratings as SQL `NULL`, not zero. Once loaded into R, those values will be treated as `NA`. I will leave them out of average ratings and report the number of actual ratings and missing ratings for each movie. If a movie has no ratings, its average will stay missing. I will not replace missing ratings with made-up scores.
+
+## Loading and summarizing in R
+
+I plan to connect to PostgreSQL using the `DBI` and `RPostgres` packages. I will use `DBI::dbGetQuery()` with a SQL query that joins the three tables and returns an R dataframe. This should let me load the stored data without manually retyping it into R.
+
+I will check that the ratings are in range and that each person/movie pair appears only once. Then I will summarize the average rating and number of ratings for each movie, along with missing counts. I may add a simple bar chart of average ratings. I will keep the small sample size in mind, especially if one movie has only a few ratings.
+
+## Survey responses
+
+The form collected 7 responses. Each respondent rated the movies they had seen from 1–5; "Haven't seen it" and blank/unanswered cells are both treated as missing, never as 0.
+
+| Timestamp  | EEAAO | Batman | Hereditary | Obsession | Odyssey | Mean Girls | Alias       |
+|---------|---------|---------|---------|---------|---------|---------|---------|
+| 9/10 15:28 | 4     | 3      | —          | —         | 5       | —          | Eduardo     |
+| 9/10 15:44 | 4     | 3      | —          | —         | —       | 5          | Annie       |
+| 9/10 15:45 | 2     | 2      | —          | —         | 4       | 3          | James       |
+| 9/10 15:47 | —     | —      | —          | 5         | 4       | —          | JOYEEEEEEEE |
+| 9/10 15:49 | 5     | —      | 3          | 5         | —       | 5          | Chris       |
+| 9/10 15:51 | —     | 4      | —          | —         | 4       | 3          | Garrett     |
+| 9/10 15:54 | 1     | —      | —          | —         | 4       | 4          | Robyn       |
+
+I assigned `user_id` 1–7 in submission order (Eduardo, Annie, James, JOYEEEEEEEE, Chris, Garrett, Robyn) and `movie_id` 1–6 in the order the form asked them (Everything Everywhere All at Once, The Batman, Hereditary, Obsession, The Odyssey, Mean Girls). Reshaping the 7 respondents x 6 movies from this wide layout into the normalized `ratings` table means writing one row per person/movie pair — 42 rows total — with a `NULL` wherever a cell above shows "—".
+
+## Database setup
+
+I refined the planned schema slightly once I had real data to work with:
+
+- `users.user_id` and `movies.movie_id` are plain `INTEGER` primary keys rather than `SERIAL`. Both are assigned by hand from the form data, so there's no reason to burn an auto-incrementing sequence on them.
+- `ratings.rating_id` uses `GENERATED ALWAYS AS IDENTITY`, the modern equivalent of `SERIAL`, since those rows don't have a natural key of their own.
+- `movies.genre`, `duration`, and `release_year` are `NOT NULL` — I have verified values for all six movies, so there's no reason to allow gaps there.
+- `ratings.rating` stays nullable, with a `CHECK (rating BETWEEN 1 AND 5)` that only constrains non-null values, so a missing rating stays valid.
+- `UNIQUE (user_id, movie_id)` on `ratings` enforces one row per person/movie pair at the database level, rather than trusting the load script to get it right.
+
+``` sql
+CREATE TABLE users (
+    user_id INTEGER PRIMARY KEY,
+    name VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE movies (
+    movie_id INTEGER PRIMARY KEY,
+    title VARCHAR(100) NOT NULL,
+    genre VARCHAR(50) NOT NULL,
+    duration INTEGER NOT NULL,
+    release_year INTEGER NOT NULL
+);
+
+CREATE TABLE ratings (
+    rating_id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(user_id),
+    movie_id INTEGER NOT NULL REFERENCES movies(movie_id),
+    rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+    UNIQUE (user_id, movie_id)
+);
+```
+
+Genre, runtime, and release year for the `movies` table were verified against Wikipedia rather than guessed, since two of the six titles (*Obsession*, 2025, and *The Odyssey*, 2026) are recent enough that I didn't want to rely on memory:
+
+| movie_id | title | genre | duration (min) | release_year |
+|----|----|----|----|----|
+| 1 | Everything Everywhere All at Once | Sci-Fi Comedy | 139 | 2022 |
+| 2 | The Batman | Action/Crime | 176 | 2022 |
+| 3 | Hereditary | Horror | 127 | 2018 |
+| 4 | Obsession | Horror | 109 | 2025 |
+| 5 | The Odyssey | Action/Fantasy | 172 | 2026 |
+| 6 | Mean Girls | Musical Comedy | 112 | 2024 |
+
+The full `CREATE TABLE` and `INSERT` statements for all three tables, including all 7 users and all 42 rating rows, are in [`week02_2a_database.sql`](week02_2a_database.sql), alongside this file. I ran that script against PostgreSQL directly (via `psql`) rather than through this document, per my original plan to keep database credentials out of my code and GitHub files.
+
+## Load and validate in R
+
+```{r setup-db, message=FALSE, warning=FALSE}
+library(DBI)
+library(RPostgres)
+library(dplyr)
+library(ggplot2)
+```
+
+```{r connect}
+con <- dbConnect(
+  RPostgres::Postgres(),
+  host     = Sys.getenv("PGHOST", "localhost"),
+  port     = as.integer(Sys.getenv("PGPORT", "5432")),
+  dbname   = Sys.getenv("PGDATABASE", "movie_ratings"),
+  user     = Sys.getenv("PGUSER", "postgres"),
+  password = Sys.getenv("PGPASSWORD")
+)
+```
+
+```{r load-joined-data}
+ratings_full <- dbGetQuery(con, "
+  SELECT u.user_id, u.name, m.movie_id, m.title, m.genre, m.duration, m.release_year, r.rating
+  FROM ratings r
+  JOIN users u ON r.user_id = u.user_id
+  JOIN movies m ON r.movie_id = m.movie_id
+  ORDER BY u.user_id, m.movie_id
+")
+```
+
+```{r validate}
+# Both checks below are already enforced by the CHECK and UNIQUE constraints
+# on the ratings table, so a successful load guarantees them -- this just
+# re-confirms it from the R side.
+range_violations <- sum(ratings_full$rating < 1 | ratings_full$rating > 5, na.rm = TRUE)
+
+duplicate_pairs <- ratings_full |>
+  count(user_id, movie_id) |>
+  filter(n > 1) |>
+  nrow()
+
+c(range_violations = range_violations, duplicate_pairs = duplicate_pairs)
+```
+
+```{r summarize}
+movie_summary <- ratings_full |>
+  group_by(movie_id, title) |>
+  summarize(
+    avg_rating = round(mean(rating, na.rm = TRUE), 2),
+    n_ratings  = sum(!is.na(rating)),
+    n_missing  = sum(is.na(rating)),
+    .groups = "drop"
+  ) |>
+  arrange(movie_id)
+
+movie_summary
+```
+
+```{r plot}
+ggplot(movie_summary, aes(x = reorder(title, avg_rating), y = avg_rating)) +
+  geom_col(fill = "#4C72B0") +
+  coord_flip() +
+  labs(x = NULL, y = "Average rating (1-5)", title = "Average movie rating by title") +
+  theme_minimal()
+```
+
+```{r disconnect}
+dbDisconnect(con)
+```
+
+This document connects to my own local PostgreSQL instance using `PGHOST`/`PGPORT`/`PGDATABASE`/`PGUSER`/`PGPASSWORD` environment variables rather than hardcoded values, so no credentials appear in this file or on GitHub. `PGPASSWORD` is set in a project-level `.Renviron` file (excluded from version control via `.gitignore`) rather than typed into the code, so R picks it up automatically at startup. I loaded `week02_2a_database.sql` into PostgreSQL and confirmed the chunks above run cleanly against it end to end; the results below are the live output.
+
+## Results
+
+Both validation checks came back clean against the loaded data: 0 ratings outside the 1–5 range, and 0 duplicate person/movie pairs (as guaranteed by the schema's `CHECK` and `UNIQUE` constraints).
+
+| movie_id | title                             | avg_rating | n_ratings | n_missing |
+|------------|-------------------------|------------|------------|------------|
+| 1        | Everything Everywhere All at Once | 3.20       | 5         | 2         |
+| 2        | The Batman                        | 3.00       | 4         | 3         |
+| 3        | Hereditary                        | 3.00       | 1         | 6         |
+| 4        | Obsession                         | 5.00       | 2         | 5         |
+| 5        | The Odyssey                       | 4.20       | 5         | 2         |
+| 6        | Mean Girls                        | 4.00       | 5         | 2         |
+
+## Conclusions
+
+One data quality caveat is worth flagging before drawing any conclusions from the *Mean Girls* numbers specifically: the form listed *Mean Girls (2024)*, the movie-musical remake, and that's what's recorded in the `movies` table (`movie_id = 6`). I don't think most respondents made that distinction when they answered, though -- very few people have actually seen the 2024 version, while nearly everyone has seen the original 2004 *Mean Girls*. I suspect the ratings under `movie_id = 6` mostly reflect opinions of the 2004 film rather than the one actually in the database. I didn't ask respondents which version they had in mind, so there's no way to separate the two after the fact from this data alone; I'm noting it here as a known limitation rather than treating that average as reliable evidence about the 2024 film. A follow-up form would need to name the film more precisely (e.g. "Mean Girls (2024 musical remake)") to avoid this ambiguity.
+
+With only 7 respondents, these averages move a lot on a single rating -- *Hereditary* and *Obsession* each have just 1–2 actual ratings, so their averages aren't very informative yet, while *Everything Everywhere All at Once*, *The Odyssey*, and *Mean Girls* have 5 ratings each and are a bit more stable. *The Odyssey* and *Mean Girls* come out ahead of the two 2022 titles in this small sample, though I wouldn't read much into the ranking given how few responses some movies have. The normalized three-table design did what it was meant to: I never had to repeat a movie's genre, runtime, or year for each rating, and the `NULL` handling kept "haven't seen it" responses from dragging down averages or getting mistaken for a real 0 rating.
+
+## AI disclosure and citation
+
+I used OpenAI's ChatGPT to help organize my proposed approach and draft the initial planning section of this document from the assignment instructions and my choices.
+
+I used Claude (Anthropic) to pull the 7 form responses from my Google Sheet, verify the genre/runtime/release-year facts for the `movies` table against Wikipedia, draft the `CREATE TABLE`/`INSERT` statements and the R/DBI loading and summary code, and run that SQL and the equivalent query logic against a live PostgreSQL instance to verify the results reported above.
+
+AI citations:
+
+OpenAI. (2026). *ChatGPT (GPT-5.6 Sol)* \[Large language model\]. Accessed September 10, 2026. <https://chatgpt.com/>.
+
+Anthropic. (2026). *Claude (Sonnet 5)* \[Large language model\]. Accessed September 13, 2026. <https://claude.ai/>.
