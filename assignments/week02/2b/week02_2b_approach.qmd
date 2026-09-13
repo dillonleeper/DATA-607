@@ -8,13 +8,18 @@ format:
     toc: true
     toc-location: left
     toc-depth: 3
-    code-fold: true
-    code-summary: "Show code"
     code-tools: true
     df-print: paged
     smooth-scroll: true
     embed-resources: true
+
+execute:
+  warning: false
+  message: false
+
+editor: visual
 ---
+
 
 ## Approach
 
@@ -45,9 +50,160 @@ I expect a lower threshold to classify more observations as female. This can hel
 
 For a low-threshold use case, I will discuss flagging items for a second review when missing a positive would be costly. For a high-threshold use case, I will discuss an alert that triggers a costly action, where false positives would be a bigger concern. I will connect these examples to the confusion matrices and explain why accuracy alone may not be enough to choose a threshold.
 
+## Load and validate the data
+
+```{r setup, message=FALSE, warning=FALSE}
+library(readr)
+library(dplyr)
+library(knitr)
+```
+
+```{r load-data}
+preds <- read_csv(
+  "https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week02/2b/penguin_predictions.csv",
+  show_col_types = FALSE
+)
+str(preds)
+```
+
+```{r data-quality}
+data_quality <- data.frame(
+  check = c(
+    "Rows loaded",
+    "Missing sex",
+    "Missing .pred_female",
+    "Out-of-range .pred_female (outside [0, 1])",
+    "Distinct sex labels"
+  ),
+  result = c(
+    nrow(preds),
+    sum(is.na(preds$sex)),
+    sum(is.na(preds$.pred_female)),
+    sum(preds$.pred_female < 0 | preds$.pred_female > 1, na.rm = TRUE),
+    paste(sort(unique(preds$sex)), collapse = ", ")
+  )
+)
+
+kable(data_quality, col.names = c("Check", "Result"))
+```
+
+The data loaded cleanly: 93 rows, no missing values in `sex` or `.pred_female`, no probabilities outside `[0, 1]`, and exactly two `sex` labels (`female`, `male`). Since nothing needs to be dropped, all 93 rows are used for the baseline and for all three threshold comparisons below.
+
+As a sanity check, I also compared a class derived from `.pred_female >= 0.5` against the `.pred_class` column already in the file, and the two matched for every row -- confirming `.pred_class` was generated at the standard 0.5 cutoff and that my threshold logic reproduces it correctly before applying it at 0.2 and 0.8.
+
+## Class balance and null error rate
+
+```{r class-balance}
+class_counts <- preds |>
+  count(sex) |>
+  mutate(proportion = round(n / sum(n), 4))
+
+kable(class_counts, col.names = c("Sex", "n", "Proportion"))
+```
+
+```{r null-error-rate}
+majority_class <- class_counts$sex[which.max(class_counts$n)]
+majority_prop  <- max(class_counts$proportion)
+null_error_rate <- round(1 - majority_prop, 4)
+
+data.frame(
+  majority_class = majority_class,
+  majority_class_accuracy = majority_prop,
+  null_error_rate = null_error_rate
+)
+```
+
+Of the 93 penguins, 39 (41.94%) are female and 54 (58.06%) are male, so `male` is the majority class. Always predicting `male` would be right 58.06% of the time, giving a **null error rate of 41.94%**. Any threshold the model is evaluated at needs to clear that baseline to be worth using.
+
+## Threshold comparison: confusion matrices and metrics
+
+```{r metrics-function}
+compute_metrics <- function(data, threshold) {
+  pred_class <- ifelse(data$.pred_female >= threshold, "female", "male")
+  actual <- data$sex
+
+  TP <- sum(pred_class == "female" & actual == "female")
+  FP <- sum(pred_class == "female" & actual == "male")
+  TN <- sum(pred_class == "male"  & actual == "male")
+  FN <- sum(pred_class == "male"  & actual == "female")
+
+  accuracy  <- (TP + TN) / (TP + TN + FP + FN)
+  precision <- if (TP + FP == 0) NA_real_ else TP / (TP + FP)
+  recall    <- if (TP + FN == 0) NA_real_ else TP / (TP + FN)
+  f1        <- if (is.na(precision) || is.na(recall) || (precision + recall) == 0) {
+    NA_real_
+  } else {
+    2 * precision * recall / (precision + recall)
+  }
+
+  data.frame(
+    threshold = threshold,
+    TP = TP, FP = FP, TN = TN, FN = FN,
+    accuracy = round(accuracy, 4),
+    precision = round(precision, 4),
+    recall = round(recall, 4),
+    f1 = round(f1, 4)
+  )
+}
+
+thresholds <- c(0.2, 0.5, 0.8)
+```
+
+```{r confusion-matrices}
+for (t in thresholds) {
+  pred_class <- factor(ifelse(preds$.pred_female >= t, "female", "male"),
+                        levels = c("female", "male"))
+  actual <- factor(preds$sex, levels = c("female", "male"))
+  cat("Threshold =", t, "\n")
+  print(table(Predicted = pred_class, Actual = actual))
+  cat("\n")
+}
+```
+
+```{r metrics-table}
+metrics_table <- dplyr::bind_rows(lapply(thresholds, function(t) compute_metrics(preds, t)))
+kable(metrics_table)
+```
+
+## Results
+
+Treating female as the positive class, the confusion matrices and metrics at each threshold are:
+
+| Threshold | TP  | FP  | TN  | FN  | Accuracy | Precision | Recall | F1     |
+|-----------|-----|-----|-----|-----|----------|-----------|--------|--------|
+| 0.2       | 37  | 6   | 48  | 2   | 0.9140   | 0.8605    | 0.9487 | 0.9024 |
+| 0.5       | 36  | 3   | 51  | 3   | 0.9355   | 0.9231    | 0.9231 | 0.9231 |
+| 0.8       | 36  | 2   | 52  | 3   | 0.9462   | 0.9474    | 0.9231 | 0.9351 |
+
+No metric hit a zero denominator at any threshold, so all four are defined at 0.2, 0.5, and 0.8. Every threshold beats the 58.06% null-model accuracy by a wide margin, so the model has real skill regardless of where the cutoff is set.
+
+## Discussion: which threshold, and when
+
+Moving the threshold from 0.2 to 0.8 mostly removed false positives (6 -\> 3 -\> 2) while adding only one extra false negative (2 -\> 3, then holding at 3), so in this particular dataset accuracy, precision, and F1 all improve somewhat as the threshold rises, and recall drops only slightly and then holds steady between 0.5 and 0.8. That is a narrower version of the tradeoff I expected in the Approach section above, not a contradiction of it: most of `.pred_female`'s values sit very close to 0 or to 1 (see the raw CSV), so the model rarely produces a genuinely borderline probability, and there are few penguins for the threshold to "flip" between 0.2 and 0.8. A less confident, more poorly separated classifier would show a sharper precision/recall tradeoff across the same three thresholds. This is a property of how well this specific model's probabilities are calibrated on this data, not something to assume of every classifier.
+
+That said, the two ends of the tradeoff still point to different use cases, which is the more general lesson:
+
+- **Lower threshold (e.g., 0.2):** appropriate when missing an actual female (a false negative) is costlier than a false positive -- for example, flagging observations for a second human review before a final call. At 0.2, recall is highest (0.9487), catching more true positives at the cost of more false alarms (FP = 6) that a reviewer would need to clear.
+- **Higher threshold (e.g., 0.8):** appropriate when acting on a false positive is the expensive mistake -- for example, an automated alert or downstream action that shouldn't fire without strong evidence. At 0.8, precision is highest (0.9474) and false positives are fewest (FP = 2), at no additional recall cost compared to 0.5 in this dataset.
+
+Accuracy alone would rank 0.8 as "best" and stop there, but it hides that 0.8 buys its precision gain over 0.5 for free here (recall is unchanged), while the gain from 0.5 down to 0.2 trades three fewer false negatives for three more false positives. Which threshold is actually preferable depends on whether the downstream cost of a false negative or a false positive is higher for the specific use case, not on accuracy in isolation.
+
+## Conclusions
+
+The model clears the null error rate baseline by a wide margin at every threshold tested: 91.4%-94.6% accuracy against a 58.06% majority-class baseline (41.94% null error rate), so the underlying classifier has real predictive skill and the choice among 0.2/0.5/0.8 is a question of which errors to prefer, not whether the model is any good. In this dataset specifically, raising the threshold from 0.2 to 0.8 was close to a free lunch -- precision and accuracy improved while recall barely moved -- but that is a consequence of `.pred_female` being strongly bimodal for this sample of 93 penguins, not a general rule. I would not recommend defaulting to the highest threshold on a different dataset without re-running this same comparison, since a classifier with less separated probabilities would show a real recall cost for that same precision gain.
+
+For recommending a single threshold in practice, I'd tie it to the cost ratio of the two error types: a screening/triage use case where missing a female penguin is worse than a wasted follow-up review should use something closer to 0.2, while a use case that acts automatically on a "female" prediction (and where that action is costly or hard to reverse) should use something closer to 0.8. Given this data, I would not use plain accuracy to make that call, since it treats a false positive and false negative as equally costly, which is rarely true outside of a null-model comparison.
+
+To extend or verify this work, I'd want to: (1) evaluate the model on a held-out or resampled set rather than the same 93 rows used to pick a threshold, since threshold selection on the evaluation set risks overfitting the cutoff to this particular sample; (2) plot a full ROC or precision-recall curve across all thresholds (not just 0.2/0.5/0.8) to see whether the "free" precision gain observed here holds across the whole range or is specific to these three points; and (3) check the model's calibration (e.g., a reliability plot of predicted probability vs. observed frequency) to confirm the bimodal `.pred_female` distribution reflects genuinely confident, well-calibrated predictions rather than an overconfident model.
+
 ## AI disclosure and citation
 
-I used OpenAI's ChatGPT to help organize the analysis plan and draft this document from the assignment instructions. The metrics and comparisons described here are planned work, not completed results. 
+I used OpenAI's ChatGPT to help organize the analysis plan and draft the "Approach," "Check the data and baseline," "Compare thresholds," and "What I will discuss" sections of this document from the assignment instructions. Those sections describe planned work rather than completed results.
 
-AI citation: OpenAI. (2026). *ChatGPT (GPT-5.6 Sol)* [Large language model]. Accessed September 10, 2026. <https://chatgpt.com/>.
+I used Claude Code (Anthropic) to write the R code that loads and validates `penguin_predictions.csv` from its raw GitHub URL, computes the class balance and null error rate, builds the confusion matrices, and calculates accuracy/precision/recall/F1 at thresholds 0.2, 0.5, and 0.8. Claude Code ran the equivalent logic directly against the CSV to verify the code's output, then rendered this document end-to-end with a local R/Quarto install to confirm it knits without errors before writing the results into this document. It drafted the "Load and validate the data," "Class balance and null error rate," "Threshold comparison," "Results," "Discussion," and "Conclusions" sections, along with this disclosure section, based on those verified results.
 
+AI citations:
+
+OpenAI. (2026). *ChatGPT (GPT-5.6 Sol)* \[Large language model\]. Accessed September 10, 2026. <https://chatgpt.com/>.
+
+Anthropic. (2026). *Claude Code (Sonnet 5)* \[Large language model software\]. Accessed September 13, 2026. <https://claude.com/claude-code>.
