@@ -22,9 +22,9 @@ editor: visual
 
 ## Approach
 
-I plan to collect ratings for *Everything Everywhere All at Once* (2022), *The Batman* (2022), *Hereditary* (2018), *Obsession* (2025), *The Odyssey* (2026), and *Mean Girls* (2024) using Google Forms. I will store the responses in PostgreSQL and bring the data into R for a few simple summaries. I will send the form to friends so that at least five people respond.
+I plan to collect ratings for *Everything Everywhere All at Once* (2022), *The Batman* (2022), *Hereditary* (2018), *Obsession* (2025), *The Odyssey* (2026), and *Mean Girls* (2024) using Google Forms. I will store the responses in PostgreSQL and bring the data into R for a few simple summaries. I will collect at least five responses.
 
-For each movie, the form will have rating choices from 1 to 5 and a separate "Haven't seen it" option. I will ask people to rate only movies they have seen. I will use a first name or alias to keep track of responses.
+For each movie, the form will have rating choices from 1 to 5 and a separate "Haven't seen it" option. I will ask people to rate only movies they have seen. I will use an anonymous respondent label to keep track of responses.
 
 ## Database structure
 
@@ -32,7 +32,7 @@ I will use three tables so that I do not have to repeat movie information for ev
 
 | Table | Planned columns |
 |------------------------------------|------------------------------------|
-| `users` | `user_id` (primary key), `name` (first name or alias) |
+| `users` | `user_id` (primary key), `name` (anonymous respondent label) |
 | `movies` | `movie_id` (primary key), `title`, `genre`, `duration` (minutes), `release_year` |
 | `ratings` | `user_id`, `movie_id`, `rating` |
 
@@ -56,15 +56,15 @@ The form collected 7 responses. Each respondent rated the movies they had seen f
 
 | Timestamp  | EEAAO | Batman | Hereditary | Obsession | Odyssey | Mean Girls | Alias       |
 |---------|---------|---------|---------|---------|---------|---------|---------|
-| 9/10 15:28 | 4     | 3      | —          | —         | 5       | —          | Eduardo     |
-| 9/10 15:44 | 4     | 3      | —          | —         | —       | 5          | Annie       |
-| 9/10 15:45 | 2     | 2      | —          | —         | 4       | 3          | James       |
-| 9/10 15:47 | —     | —      | —          | 5         | 4       | —          | JOYEEEEEEEE |
-| 9/10 15:49 | 5     | —      | 3          | 5         | —       | 5          | Chris       |
-| 9/10 15:51 | —     | 4      | —          | —         | 4       | 3          | Garrett     |
-| 9/10 15:54 | 1     | —      | —          | —         | 4       | 4          | Robyn       |
+| 9/10 15:28 | 4     | 3      | —          | —         | 5       | —          | Respondent 1     |
+| 9/10 15:44 | 4     | 3      | —          | —         | —       | 5          | Respondent 2       |
+| 9/10 15:45 | 2     | 2      | —          | —         | 4       | 3          | Respondent 3       |
+| 9/10 15:47 | —     | —      | —          | 5         | 4       | —          | Respondent 4 |
+| 9/10 15:49 | 5     | —      | 3          | 5         | —       | 5          | Respondent 5       |
+| 9/10 15:51 | —     | 4      | —          | —         | 4       | 3          | Respondent 6     |
+| 9/10 15:54 | 1     | —      | —          | —         | 4       | 4          | Respondent 7       |
 
-I assigned `user_id` 1–7 in submission order (Eduardo, Annie, James, JOYEEEEEEEE, Chris, Garrett, Robyn) and `movie_id` 1–6 in the order the form asked them (Everything Everywhere All at Once, The Batman, Hereditary, Obsession, The Odyssey, Mean Girls). Reshaping the 7 respondents x 6 movies from this wide layout into the normalized `ratings` table means writing one row per person/movie pair — 42 rows total — with a `NULL` wherever a cell above shows "—".
+I assigned `user_id` 1–7 in submission order (Respondent 1, Respondent 2, Respondent 3, Respondent 4, Respondent 5, Respondent 6, Respondent 7) and `movie_id` 1–6 in the order the form asked them (Everything Everywhere All at Once, The Batman, Hereditary, Obsession, The Odyssey, Mean Girls). Reshaping the 7 respondents x 6 movies from this wide layout into the normalized `ratings` table means writing one row per person/movie pair — 42 rows total — with a `NULL` wherever a cell above shows "—".
 
 ## Database setup
 
