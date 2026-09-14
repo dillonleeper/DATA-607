@@ -4,7 +4,7 @@
 
 -- Source data: Google Form responses
 -- 7 respondents, collected 2026-09-10
--- https://docs.google.com/spreadsheets/d/1olkrRD_zbV3aiZ8QKG-wd6takDcmBxyclC2jbAyyCPc
+-- Source spreadsheet URL omitted from the public repository.
 
 -- Movie genre/runtime verified against Wikipedia (2026-09-13):
 -- Everything Everywhere All at Once:
@@ -75,13 +75,13 @@ CREATE TABLE ratings (
 -- ============================================================
 
 INSERT INTO users (user_id, name) VALUES
-    (1, 'Eduardo'),
-    (2, 'Annie'),
-    (3, 'James'),
-    (4, 'JOYEEEEEEEE'),
-    (5, 'Chris'),
-    (6, 'Garrett'),
-    (7, 'Robyn');
+    (1, 'Respondent 1'),
+    (2, 'Respondent 2'),
+    (3, 'Respondent 3'),
+    (4, 'Respondent 4'),
+    (5, 'Respondent 5'),
+    (6, 'Respondent 6'),
+    (7, 'Respondent 7');
 
 
 -- ============================================================
@@ -122,7 +122,7 @@ INSERT INTO movies (
 
 INSERT INTO ratings (user_id, movie_id, rating) VALUES
 
-    -- Eduardo (user_id 1)
+    -- Respondent 1 (user_id 1)
     (1, 1, 4),
     (1, 2, 3),
     (1, 3, NULL),
@@ -130,7 +130,7 @@ INSERT INTO ratings (user_id, movie_id, rating) VALUES
     (1, 5, 5),
     (1, 6, NULL),
 
-    -- Annie (user_id 2)
+    -- Respondent 2 (user_id 2)
     (2, 1, 4),
     (2, 2, 3),
     (2, 3, NULL),
@@ -138,7 +138,7 @@ INSERT INTO ratings (user_id, movie_id, rating) VALUES
     (2, 5, NULL),
     (2, 6, 5),
 
-    -- James (user_id 3)
+    -- Respondent 3 (user_id 3)
     (3, 1, 2),
     (3, 2, 2),
     (3, 3, NULL),
@@ -146,7 +146,7 @@ INSERT INTO ratings (user_id, movie_id, rating) VALUES
     (3, 5, 4),
     (3, 6, 3),
 
-    -- JOYEEEEEEEE (user_id 4)
+    -- Respondent 4 (user_id 4)
     (4, 1, NULL),
     (4, 2, NULL),
     (4, 3, NULL),
@@ -154,7 +154,7 @@ INSERT INTO ratings (user_id, movie_id, rating) VALUES
     (4, 5, 4),
     (4, 6, NULL),
 
-    -- Chris (user_id 5)
+    -- Respondent 5 (user_id 5)
     (5, 1, 5),
     (5, 2, NULL),
     (5, 3, 3),
@@ -162,7 +162,7 @@ INSERT INTO ratings (user_id, movie_id, rating) VALUES
     (5, 5, NULL),
     (5, 6, 5),
 
-    -- Garrett (user_id 6)
+    -- Respondent 6 (user_id 6)
     (6, 1, NULL),
     (6, 2, 4),
     (6, 3, NULL),
@@ -170,7 +170,7 @@ INSERT INTO ratings (user_id, movie_id, rating) VALUES
     (6, 5, 4),
     (6, 6, 3),
 
-    -- Robyn (user_id 7)
+    -- Respondent 7 (user_id 7)
     (7, 1, 1),
     (7, 2, NULL),
     (7, 3, NULL),
