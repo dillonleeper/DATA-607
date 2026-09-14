@@ -1,12 +1,5 @@
 # Assignments
 
-Store DATA 607 assignment source files here.
+My weekly DATA 607 assignments are organized by week, starting with `week01/` and `week02/`.
 
-Suggested organization:
-
-- `week01/`
-- `week02/`
-- `week03/`
-- etc.
-
-Keep the editable `.qmd` source, required supporting files, and any submission documentation together for each assignment.
+Each assignment folder keeps the editable Quarto (`.qmd`) source, supporting files, and submission documentation together. Rendered reports and AI-use transcripts are included where they accompany the assignment.
