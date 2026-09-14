@@ -1,3 +1,3 @@
 # Projects
 
-Store DATA 607 project source files and supporting materials here.
+This folder is for my DATA 607 course projects and their supporting files. There isn't any project work here yet.
