@@ -3491,10 +3491,15 @@ window.onload = function() {
   <li><a href="#compare-thresholds" id="toc-compare-thresholds" class="nav-link" data-scroll-target="#compare-thresholds">Compare thresholds</a></li>
   <li><a href="#what-i-will-discuss" id="toc-what-i-will-discuss" class="nav-link" data-scroll-target="#what-i-will-discuss">What I will discuss</a></li>
   <li><a href="#load-and-validate-the-data" id="toc-load-and-validate-the-data" class="nav-link" data-scroll-target="#load-and-validate-the-data">Load and validate the data</a></li>
-  <li><a href="#class-balance-and-null-error-rate" id="toc-class-balance-and-null-error-rate" class="nav-link" data-scroll-target="#class-balance-and-null-error-rate">Class balance and null error rate</a></li>
-  <li><a href="#threshold-comparison-confusion-matrices-and-metrics" id="toc-threshold-comparison-confusion-matrices-and-metrics" class="nav-link" data-scroll-target="#threshold-comparison-confusion-matrices-and-metrics">Threshold comparison: confusion matrices and metrics</a></li>
+  <li><a href="#class-balance-and-the-null-error-rate" id="toc-class-balance-and-the-null-error-rate" class="nav-link" data-scroll-target="#class-balance-and-the-null-error-rate">Class balance and the null error rate</a></li>
+  <li><a href="#threshold-comparison" id="toc-threshold-comparison" class="nav-link" data-scroll-target="#threshold-comparison">Threshold comparison</a>
+  <ul class="collapse">
+  <li><a href="#threshold-0.2" id="toc-threshold-0.2" class="nav-link" data-scroll-target="#threshold-0.2">Threshold = 0.2</a></li>
+  <li><a href="#threshold-0.5" id="toc-threshold-0.5" class="nav-link" data-scroll-target="#threshold-0.5">Threshold = 0.5</a></li>
+  <li><a href="#threshold-0.8" id="toc-threshold-0.8" class="nav-link" data-scroll-target="#threshold-0.8">Threshold = 0.8</a></li>
+  </ul></li>
   <li><a href="#results" id="toc-results" class="nav-link" data-scroll-target="#results">Results</a></li>
-  <li><a href="#discussion-which-threshold-and-when" id="toc-discussion-which-threshold-and-when" class="nav-link" data-scroll-target="#discussion-which-threshold-and-when">Discussion: which threshold, and when</a></li>
+  <li><a href="#discussion" id="toc-discussion" class="nav-link" data-scroll-target="#discussion">Discussion</a></li>
   <li><a href="#conclusions" id="toc-conclusions" class="nav-link" data-scroll-target="#conclusions">Conclusions</a></li>
   <li><a href="#ai-disclosure-and-citation" id="toc-ai-disclosure-and-citation" class="nav-link" data-scroll-target="#ai-disclosure-and-citation">AI disclosure and citation</a></li>
   </ul>
@@ -3566,213 +3571,221 @@ window.onload = function() {
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>preds <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>penguins_pred <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week02/2b/penguin_predictions.csv&quot;</span>,</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">show_col_types =</span> <span class="cn">FALSE</span></span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(preds)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(penguins_pred)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>spc_tbl_ [93 × 3] (S3: spec_tbl_df/tbl_df/tbl/data.frame)
- $ .pred_female: num [1:93] 0.992 0.954 0.985 0.187 0.995 ...
- $ .pred_class : chr [1:93] &quot;female&quot; &quot;female&quot; &quot;female&quot; &quot;male&quot; ...
- $ sex         : chr [1:93] &quot;female&quot; &quot;female&quot; &quot;female&quot; &quot;female&quot; ...
- - attr(*, &quot;spec&quot;)=
-  .. cols(
-  ..   .pred_female = col_double(),
-  ..   .pred_class = col_character(),
-  ..   sex = col_character()
-  .. )
- - attr(*, &quot;problems&quot;)=&lt;externalptr&gt; </code></pre>
+<pre><code>Rows: 93
+Columns: 3
+$ .pred_female &lt;dbl&gt; 0.99217462, 0.95423945, 0.98473504, 0.18702056, 0.9947012…
+$ .pred_class  &lt;chr&gt; &quot;female&quot;, &quot;female&quot;, &quot;female&quot;, &quot;male&quot;, &quot;female&quot;, &quot;female&quot;,…
+$ sex          &lt;chr&gt; &quot;female&quot;, &quot;female&quot;, &quot;female&quot;, &quot;female&quot;, &quot;female&quot;, &quot;female…</code></pre>
 </div>
 </div>
+<p>Before doing anything else, I checked the data for missing values, confirmed <code>.pred_female</code> is a valid probability (between 0 and 1), and confirmed the actual and predicted class columns only contain <code>&quot;female&quot;</code> and <code>&quot;male&quot;</code>.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>data_quality <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">check =</span> <span class="fu">c</span>(</span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Rows loaded&quot;</span>,</span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Missing sex&quot;</span>,</span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Missing .pred_female&quot;</span>,</span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Out-of-range .pred_female (outside [0, 1])&quot;</span>,</span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Distinct sex labels&quot;</span></span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">result =</span> <span class="fu">c</span>(</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nrow</span>(preds),</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(<span class="fu">is.na</span>(preds<span class="sc">$</span>sex)),</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(<span class="fu">is.na</span>(preds<span class="sc">$</span>.pred_female)),</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(preds<span class="sc">$</span>.pred_female <span class="sc">&lt;</span> <span class="dv">0</span> <span class="sc">|</span> preds<span class="sc">$</span>.pred_female <span class="sc">&gt;</span> <span class="dv">1</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>    <span class="fu">paste</span>(<span class="fu">sort</span>(<span class="fu">unique</span>(preds<span class="sc">$</span>sex)), <span class="at">collapse =</span> <span class="st">&quot;, &quot;</span>)</span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(data_quality, <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">&quot;Check&quot;</span>, <span class="st">&quot;Result&quot;</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<div class="cell-output-display">
-<table class="caption-top table table-sm table-striped small">
-<thead>
-<tr class="header">
-<th style="text-align: left;">Check</th>
-<th style="text-align: left;">Result</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td style="text-align: left;">Rows loaded</td>
-<td style="text-align: left;">93</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Missing sex</td>
-<td style="text-align: left;">0</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Missing .pred_female</td>
-<td style="text-align: left;">0</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">Out-of-range .pred_female (outside [0, 1])</td>
-<td style="text-align: left;">0</td>
-</tr>
-<tr class="odd">
-<td style="text-align: left;">Distinct sex labels</td>
-<td style="text-align: left;">female, male</td>
-</tr>
-</tbody>
-</table>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co"># missing values</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(<span class="fu">is.na</span>(penguins_pred))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>.pred_female  .pred_class          sex 
+           0            0            0 </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># probability range check</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span>(penguins_pred<span class="sc">$</span>.pred_female)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 5.599077e-12 1.000000e+00</code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># class labels present</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(penguins_pred<span class="sc">$</span>sex)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;female&quot; &quot;male&quot;  </code></pre>
+</div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(penguins_pred<span class="sc">$</span>.pred_class)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] &quot;female&quot; &quot;male&quot;  </code></pre>
 </div>
 </div>
-<p>The data loaded cleanly: 93 rows, no missing values in <code>sex</code> or <code>.pred_female</code>, no probabilities outside <code>[0, 1]</code>, and exactly two <code>sex</code> labels (<code>female</code>, <code>male</code>). Since nothing needs to be dropped, all 93 rows are used for the baseline and for all three threshold comparisons below.</p>
-<p>As a sanity check, I also compared a class derived from <code>.pred_female &gt;= 0.5</code> against the <code>.pred_class</code> column already in the file, and the two matched for every row – confirming <code>.pred_class</code> was generated at the standard 0.5 cutoff and that my threshold logic reproduces it correctly before applying it at 0.2 and 0.8.</p>
+<p>There are 93 complete rows with no missing values in <code>sex</code> or <code>.pred_female</code>, so all rows are used in every threshold comparison below. <code>.pred_female</code> falls entirely within <code>[0, 1]</code> as expected for a predicted probability.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>derived_0<span class="fl">.5</span> <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(penguins_pred<span class="sc">$</span>.pred_female <span class="sc">&gt;=</span> <span class="fl">0.5</span>, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(derived_0<span class="fl">.5</span> <span class="sc">!=</span> penguins_pred<span class="sc">$</span>.pred_class)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 0</code></pre>
+</div>
+</div>
+<p>As a sanity check, I also compared a class derived from <code>.pred_female &gt;= 0.5</code> against the <code>.pred_class</code> column already in the file: zero rows disagree, confirming <code>.pred_class</code> was generated at the standard 0.5 cutoff and that this same threshold logic reproduces it correctly before applying it at 0.2 and 0.8.</p>
 </section>
-<section id="class-balance-and-null-error-rate" class="level2">
-<h2 class="anchored" data-anchor-id="class-balance-and-null-error-rate">Class balance and null error rate</h2>
+<section id="class-balance-and-the-null-error-rate" class="level2">
+<h2 class="anchored" data-anchor-id="class-balance-and-the-null-error-rate">Class balance and the null error rate</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>class_counts <span class="ot">&lt;-</span> preds <span class="sc">|&gt;</span></span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(sex) <span class="sc">|&gt;</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">proportion =</span> <span class="fu">round</span>(n <span class="sc">/</span> <span class="fu">sum</span>(n), <span class="dv">4</span>))</span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(class_counts, <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">&quot;Sex&quot;</span>, <span class="st">&quot;n&quot;</span>, <span class="st">&quot;Proportion&quot;</span>))</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>class_counts <span class="ot">&lt;-</span> penguins_pred <span class="sc">|&gt;</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(sex) <span class="sc">|&gt;</span></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">proportion =</span> n <span class="sc">/</span> <span class="fu">sum</span>(n))</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(class_counts, <span class="at">digits =</span> <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <thead>
 <tr class="header">
-<th style="text-align: left;">Sex</th>
+<th style="text-align: left;">sex</th>
 <th style="text-align: right;">n</th>
-<th style="text-align: right;">Proportion</th>
+<th style="text-align: right;">proportion</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td style="text-align: left;">female</td>
 <td style="text-align: right;">39</td>
-<td style="text-align: right;">0.4194</td>
+<td style="text-align: right;">0.419</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">male</td>
 <td style="text-align: right;">54</td>
-<td style="text-align: right;">0.5806</td>
+<td style="text-align: right;">0.581</td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>majority_class <span class="ot">&lt;-</span> class_counts<span class="sc">$</span>sex[<span class="fu">which.max</span>(class_counts<span class="sc">$</span>n)]</span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>majority_prop  <span class="ot">&lt;-</span> <span class="fu">max</span>(class_counts<span class="sc">$</span>proportion)</span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>null_error_rate <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="dv">1</span> <span class="sc">-</span> majority_prop, <span class="dv">4</span>)</span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">majority_class =</span> majority_class,</span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">majority_class_accuracy =</span> majority_prop,</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">null_error_rate =</span> null_error_rate</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(penguins_pred, <span class="fu">aes</span>(<span class="at">x =</span> sex, <span class="at">fill =</span> sex)) <span class="sc">+</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>() <span class="sc">+</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">&quot;Distribution of the Actual Class (sex)&quot;</span>,</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">&quot;Actual sex&quot;</span>,</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">&quot;Count&quot;</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">&quot;none&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
-<div data-pagedtable="false">
-  <script data-pagedtable-source type="application/json">
-{"columns":[{"label":["majority_class"],"name":[1],"type":["chr"],"align":["left"]},{"label":["majority_class_accuracy"],"name":[2],"type":["dbl"],"align":["right"]},{"label":["null_error_rate"],"name":[3],"type":["dbl"],"align":["right"]}],"data":[{"1":"male","2":"0.5806","3":"0.4194"}],"options":{"columns":{"min":{},"max":[10]},"rows":{"min":[10],"max":[10]},"pages":{}}}
-  </script>
+<div>
+<figure class="figure">
+<p><img role="img" aria-label="Bar chart showing the count of female and male penguins in the actual sex column" src="data:image/png;base64,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" class="img-fluid figure-img" alt="Bar chart showing the count of female and male penguins in the actual sex column" width="672"></p>
+</figure>
 </div>
 </div>
-</div>
-<p>Of the 93 penguins, 39 (41.94%) are female and 54 (58.06%) are male, so <code>male</code> is the majority class. Always predicting <code>male</code> would be right 58.06% of the time, giving a <strong>null error rate of 41.94%</strong>. Any threshold the model is evaluated at needs to clear that baseline to be worth using.</p>
-</section>
-<section id="threshold-comparison-confusion-matrices-and-metrics" class="level2">
-<h2 class="anchored" data-anchor-id="threshold-comparison-confusion-matrices-and-metrics">Threshold comparison: confusion matrices and metrics</h2>
-<div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>compute_metrics <span class="ot">&lt;-</span> <span class="cf">function</span>(data, threshold) {</span>
-<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  pred_class <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(data<span class="sc">$</span>.pred_female <span class="sc">&gt;=</span> threshold, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>)</span>
-<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  actual <span class="ot">&lt;-</span> data<span class="sc">$</span>sex</span>
-<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  TP <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred_class <span class="sc">==</span> <span class="st">&quot;female&quot;</span> <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;female&quot;</span>)</span>
-<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  FP <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred_class <span class="sc">==</span> <span class="st">&quot;female&quot;</span> <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;male&quot;</span>)</span>
-<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  TN <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred_class <span class="sc">==</span> <span class="st">&quot;male&quot;</span>  <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;male&quot;</span>)</span>
-<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  FN <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred_class <span class="sc">==</span> <span class="st">&quot;male&quot;</span>  <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;female&quot;</span>)</span>
-<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>  accuracy  <span class="ot">&lt;-</span> (TP <span class="sc">+</span> TN) <span class="sc">/</span> (TP <span class="sc">+</span> TN <span class="sc">+</span> FP <span class="sc">+</span> FN)</span>
-<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  precision <span class="ot">&lt;-</span> <span class="cf">if</span> (TP <span class="sc">+</span> FP <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> TP <span class="sc">/</span> (TP <span class="sc">+</span> FP)</span>
-<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>  recall    <span class="ot">&lt;-</span> <span class="cf">if</span> (TP <span class="sc">+</span> FN <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> TP <span class="sc">/</span> (TP <span class="sc">+</span> FN)</span>
-<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>  f1        <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">is.na</span>(precision) <span class="sc">||</span> <span class="fu">is.na</span>(recall) <span class="sc">||</span> (precision <span class="sc">+</span> recall) <span class="sc">==</span> <span class="dv">0</span>) {</span>
-<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>    <span class="cn">NA_real_</span></span>
-<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
-<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span> <span class="sc">*</span> precision <span class="sc">*</span> recall <span class="sc">/</span> (precision <span class="sc">+</span> recall)</span>
-<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
-<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">threshold =</span> threshold,</span>
-<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">TP =</span> TP, <span class="at">FP =</span> FP, <span class="at">TN =</span> TN, <span class="at">FN =</span> FN,</span>
-<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>    <span class="at">accuracy =</span> <span class="fu">round</span>(accuracy, <span class="dv">4</span>),</span>
-<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">precision =</span> <span class="fu">round</span>(precision, <span class="dv">4</span>),</span>
-<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">recall =</span> <span class="fu">round</span>(recall, <span class="dv">4</span>),</span>
-<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">f1 =</span> <span class="fu">round</span>(f1, <span class="dv">4</span>)</span>
-<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>thresholds <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.2</span>, <span class="fl">0.5</span>, <span class="fl">0.8</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </div>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (t <span class="cf">in</span> thresholds) {</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  pred_class <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">ifelse</span>(preds<span class="sc">$</span>.pred_female <span class="sc">&gt;=</span> t, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>),</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>                        <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>))</span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  actual <span class="ot">&lt;-</span> <span class="fu">factor</span>(preds<span class="sc">$</span>sex, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>))</span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Threshold =&quot;</span>, t, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(<span class="fu">table</span>(<span class="at">Predicted =</span> pred_class, <span class="at">Actual =</span> actual))</span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="fu">nrow</span>(penguins_pred)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>majority_class <span class="ot">&lt;-</span> class_counts<span class="sc">$</span>sex[<span class="fu">which.max</span>(class_counts<span class="sc">$</span>n)]</span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>majority_count <span class="ot">&lt;-</span> <span class="fu">max</span>(class_counts<span class="sc">$</span>n)</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>null_error_rate <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> (majority_count <span class="sc">/</span> n)</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>null_error_rate</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Threshold = 0.2 
-         Actual
+<pre><code>[1] 0.4193548</code></pre>
+</div>
+</div>
+<p>The majority class is <strong>male</strong> (54 of 93 observations). Always predicting male would be wrong 41.9% of the time, so the null error rate is <strong>0.419</strong> and the corresponding null accuracy is <strong>0.581</strong>. Any threshold I evaluate below needs to beat that baseline to be worth using over just guessing the majority class.</p>
+</section>
+<section id="threshold-comparison" class="level2">
+<h2 class="anchored" data-anchor-id="threshold-comparison">Threshold comparison</h2>
+<p>I derived new predicted classes directly from <code>.pred_female</code> at thresholds of 0.2, 0.5, and 0.8, classifying an observation as <code>female</code> when <code>.pred_female</code> is greater than or equal to the threshold and <code>male</code> otherwise, rather than reusing the provided <code>.pred_class</code> column for every threshold.</p>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>confusion_and_metrics <span class="ot">&lt;-</span> <span class="cf">function</span>(data, threshold, <span class="at">positive =</span> <span class="st">&quot;female&quot;</span>) {</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  pred <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(data<span class="sc">$</span>.pred_female <span class="sc">&gt;=</span> threshold, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>)</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  actual <span class="ot">&lt;-</span> data<span class="sc">$</span>sex</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>  TP <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred <span class="sc">==</span> <span class="st">&quot;female&quot;</span> <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;female&quot;</span>)</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  FP <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred <span class="sc">==</span> <span class="st">&quot;female&quot;</span> <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;male&quot;</span>)</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  TN <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred <span class="sc">==</span> <span class="st">&quot;male&quot;</span>   <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;male&quot;</span>)</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  FN <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred <span class="sc">==</span> <span class="st">&quot;male&quot;</span>   <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;female&quot;</span>)</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  accuracy  <span class="ot">&lt;-</span> (TP <span class="sc">+</span> TN) <span class="sc">/</span> (TP <span class="sc">+</span> TN <span class="sc">+</span> FP <span class="sc">+</span> FN)</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  precision <span class="ot">&lt;-</span> <span class="cf">if</span> ((TP <span class="sc">+</span> FP) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> TP <span class="sc">/</span> (TP <span class="sc">+</span> FP)</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>  recall    <span class="ot">&lt;-</span> <span class="cf">if</span> ((TP <span class="sc">+</span> FN) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> TP <span class="sc">/</span> (TP <span class="sc">+</span> FN)</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>  f1        <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">is.na</span>(precision) <span class="sc">||</span> <span class="fu">is.na</span>(recall) <span class="sc">||</span> (precision <span class="sc">+</span> recall) <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>    <span class="cn">NA_real_</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span> <span class="sc">*</span> precision <span class="sc">*</span> recall <span class="sc">/</span> (precision <span class="sc">+</span> recall)</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>    <span class="at">threshold =</span> threshold,</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>    <span class="at">confusion =</span> <span class="fu">matrix</span>(<span class="fu">c</span>(TP, FP, FN, TN), <span class="at">nrow =</span> <span class="dv">2</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>                        <span class="at">dimnames =</span> <span class="fu">list</span>(<span class="st">&quot;Predicted&quot;</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>),</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>                                        <span class="st">&quot;Actual&quot;</span>    <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>))),</span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>    <span class="at">TP =</span> TP, <span class="at">FP =</span> FP, <span class="at">TN =</span> TN, <span class="at">FN =</span> FN,</span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>    <span class="at">accuracy =</span> accuracy, <span class="at">precision =</span> precision, <span class="at">recall =</span> recall, <span class="at">f1 =</span> f1</span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a>thresholds <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.2</span>, <span class="fl">0.5</span>, <span class="fl">0.8</span>)</span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">lapply</span>(thresholds, confusion_and_metrics, <span class="at">data =</span> penguins_pred)</span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(results) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;t_&quot;</span>, thresholds)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</div>
+<section id="threshold-0.2" class="level3">
+<h3 class="anchored" data-anchor-id="threshold-0.2">Threshold = 0.2</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>results<span class="sc">$</span>t_0<span class="fl">.2</span><span class="sc">$</span>confusion</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>         Actual
 Predicted female male
    female     37    6
-   male        2   48
-
-Threshold = 0.5 
-         Actual
+   male        2   48</code></pre>
+</div>
+</div>
+</section>
+<section id="threshold-0.5" class="level3">
+<h3 class="anchored" data-anchor-id="threshold-0.5">Threshold = 0.5</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>results<span class="sc">$</span>t_0<span class="fl">.5</span><span class="sc">$</span>confusion</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>         Actual
 Predicted female male
    female     36    3
-   male        3   51
-
-Threshold = 0.8 
-         Actual
+   male        3   51</code></pre>
+</div>
+</div>
+</section>
+<section id="threshold-0.8" class="level3">
+<h3 class="anchored" data-anchor-id="threshold-0.8">Threshold = 0.8</h3>
+<div class="cell">
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>results<span class="sc">$</span>t_0<span class="fl">.8</span><span class="sc">$</span>confusion</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>         Actual
 Predicted female male
    female     36    2
    male        3   52</code></pre>
 </div>
 </div>
+</section>
+</section>
+<section id="results" class="level2">
+<h2 class="anchored" data-anchor-id="results">Results</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>metrics_table <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">bind_rows</span>(<span class="fu">lapply</span>(thresholds, <span class="cf">function</span>(t) <span class="fu">compute_metrics</span>(preds, t)))</span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(metrics_table)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>metrics_table <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">Threshold =</span> thresholds,</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">TP =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>TP),</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">FP =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>FP),</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">TN =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>TN),</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">FN =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>FN),</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">Accuracy  =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>accuracy),</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">Precision =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>precision),</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">Recall    =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>recall),</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">F1        =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>f1)</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(metrics_table, <span class="at">digits =</span> <span class="dv">3</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <thead>
 <tr class="header">
-<th style="text-align: right;">threshold</th>
+<th style="text-align: right;">Threshold</th>
 <th style="text-align: right;">TP</th>
 <th style="text-align: right;">FP</th>
 <th style="text-align: right;">TN</th>
 <th style="text-align: right;">FN</th>
-<th style="text-align: right;">accuracy</th>
-<th style="text-align: right;">precision</th>
-<th style="text-align: right;">recall</th>
-<th style="text-align: right;">f1</th>
+<th style="text-align: right;">Accuracy</th>
+<th style="text-align: right;">Precision</th>
+<th style="text-align: right;">Recall</th>
+<th style="text-align: right;">F1</th>
 </tr>
 </thead>
 <tbody>
@@ -3782,10 +3795,10 @@ Predicted female male
 <td style="text-align: right;">6</td>
 <td style="text-align: right;">48</td>
 <td style="text-align: right;">2</td>
-<td style="text-align: right;">0.9140</td>
-<td style="text-align: right;">0.8605</td>
-<td style="text-align: right;">0.9487</td>
-<td style="text-align: right;">0.9024</td>
+<td style="text-align: right;">0.914</td>
+<td style="text-align: right;">0.860</td>
+<td style="text-align: right;">0.949</td>
+<td style="text-align: right;">0.902</td>
 </tr>
 <tr class="even">
 <td style="text-align: right;">0.5</td>
@@ -3793,10 +3806,10 @@ Predicted female male
 <td style="text-align: right;">3</td>
 <td style="text-align: right;">51</td>
 <td style="text-align: right;">3</td>
-<td style="text-align: right;">0.9355</td>
-<td style="text-align: right;">0.9231</td>
-<td style="text-align: right;">0.9231</td>
-<td style="text-align: right;">0.9231</td>
+<td style="text-align: right;">0.935</td>
+<td style="text-align: right;">0.923</td>
+<td style="text-align: right;">0.923</td>
+<td style="text-align: right;">0.923</td>
 </tr>
 <tr class="odd">
 <td style="text-align: right;">0.8</td>
@@ -3804,105 +3817,38 @@ Predicted female male
 <td style="text-align: right;">2</td>
 <td style="text-align: right;">52</td>
 <td style="text-align: right;">3</td>
-<td style="text-align: right;">0.9462</td>
-<td style="text-align: right;">0.9474</td>
-<td style="text-align: right;">0.9231</td>
-<td style="text-align: right;">0.9351</td>
+<td style="text-align: right;">0.946</td>
+<td style="text-align: right;">0.947</td>
+<td style="text-align: right;">0.923</td>
+<td style="text-align: right;">0.935</td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
+<p>For reference, the null accuracy from always predicting the majority class (male) was 0.581. All three thresholds clear that baseline comfortably.</p>
 </section>
-<section id="results" class="level2">
-<h2 class="anchored" data-anchor-id="results">Results</h2>
-<p>Treating female as the positive class, the confusion matrices and metrics at each threshold are:</p>
-<table class="caption-top table">
-<colgroup>
-<col style="width: 16%">
-<col style="width: 7%">
-<col style="width: 7%">
-<col style="width: 7%">
-<col style="width: 7%">
-<col style="width: 14%">
-<col style="width: 16%">
-<col style="width: 11%">
-<col style="width: 11%">
-</colgroup>
-<thead>
-<tr class="header">
-<th>Threshold</th>
-<th>TP</th>
-<th>FP</th>
-<th>TN</th>
-<th>FN</th>
-<th>Accuracy</th>
-<th>Precision</th>
-<th>Recall</th>
-<th>F1</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td>0.2</td>
-<td>37</td>
-<td>6</td>
-<td>48</td>
-<td>2</td>
-<td>0.9140</td>
-<td>0.8605</td>
-<td>0.9487</td>
-<td>0.9024</td>
-</tr>
-<tr class="even">
-<td>0.5</td>
-<td>36</td>
-<td>3</td>
-<td>51</td>
-<td>3</td>
-<td>0.9355</td>
-<td>0.9231</td>
-<td>0.9231</td>
-<td>0.9231</td>
-</tr>
-<tr class="odd">
-<td>0.8</td>
-<td>36</td>
-<td>2</td>
-<td>52</td>
-<td>3</td>
-<td>0.9462</td>
-<td>0.9474</td>
-<td>0.9231</td>
-<td>0.9351</td>
-</tr>
-</tbody>
-</table>
-<p>No metric hit a zero denominator at any threshold, so all four are defined at 0.2, 0.5, and 0.8. Every threshold beats the 58.06% null-model accuracy by a wide margin, so the model has real skill regardless of where the cutoff is set.</p>
-</section>
-<section id="discussion-which-threshold-and-when" class="level2">
-<h2 class="anchored" data-anchor-id="discussion-which-threshold-and-when">Discussion: which threshold, and when</h2>
-<p>Moving the threshold from 0.2 to 0.8 mostly removed false positives (6 -&gt; 3 -&gt; 2) while adding only one extra false negative (2 -&gt; 3, then holding at 3), so in this particular dataset accuracy, precision, and F1 all improve somewhat as the threshold rises, and recall drops only slightly and then holds steady between 0.5 and 0.8. That is a narrower version of the tradeoff I expected in the Approach section above, not a contradiction of it: most of <code>.pred_female</code>’s values sit very close to 0 or to 1 (see the raw CSV), so the model rarely produces a genuinely borderline probability, and there are few penguins for the threshold to “flip” between 0.2 and 0.8. A less confident, more poorly separated classifier would show a sharper precision/recall tradeoff across the same three thresholds. This is a property of how well this specific model’s probabilities are calibrated on this data, not something to assume of every classifier.</p>
-<p>That said, the two ends of the tradeoff still point to different use cases, which is the more general lesson:</p>
-<ul>
-<li><strong>Lower threshold (e.g., 0.2):</strong> appropriate when missing an actual female (a false negative) is costlier than a false positive – for example, flagging observations for a second human review before a final call. At 0.2, recall is highest (0.9487), catching more true positives at the cost of more false alarms (FP = 6) that a reviewer would need to clear.</li>
-<li><strong>Higher threshold (e.g., 0.8):</strong> appropriate when acting on a false positive is the expensive mistake – for example, an automated alert or downstream action that shouldn’t fire without strong evidence. At 0.8, precision is highest (0.9474) and false positives are fewest (FP = 2), at no additional recall cost compared to 0.5 in this dataset.</li>
-</ul>
-<p>Accuracy alone would rank 0.8 as “best” and stop there, but it hides that 0.8 buys its precision gain over 0.5 for free here (recall is unchanged), while the gain from 0.5 down to 0.2 trades three fewer false negatives for three more false positives. Which threshold is actually preferable depends on whether the downstream cost of a false negative or a false positive is higher for the specific use case, not on accuracy in isolation.</p>
+<section id="discussion" class="level2">
+<h2 class="anchored" data-anchor-id="discussion">Discussion</h2>
+<p>Raising the threshold from 0.2 to 0.8 steadily reduced false positives (6 -&gt; 3 -&gt; 2) at the cost of missing one additional true positive (37 -&gt; 36 -&gt; 36 true positives, 2 -&gt; 3 -&gt; 3 false negatives), which is exactly the precision/recall tradeoff I expected going in. Accuracy and F1 both nudge upward as the threshold increases in this particular dataset, but that is a property of this data, not a general rule – precision rose (0.860 -&gt; 0.923 -&gt; 0.947) while recall slightly fell (0.949 -&gt; 0.923 -&gt; 0.923), so the “best” threshold really depends on which error type is more costly, not on which threshold produces the highest accuracy.</p>
+<p><strong>Low threshold (0.2) – flagging for review:</strong> a low threshold is preferable when missing an actual positive is expensive and a false positive is cheap to catch later. For example, a content-moderation model flagging posts for possible policy violations: setting the threshold low means more posts get sent for human review (more false positives), but far fewer genuine violations slip through unflagged (fewer false negatives). The cost of a reviewer clearing an innocent post is small compared to the cost of missing a real violation.</p>
+<p><strong>High threshold (0.8) – triggering a costly, hard-to-reverse action:</strong> a high threshold is preferable when a false positive triggers something expensive, embarrassing, or hard to undo, and it is acceptable to miss some true positives to avoid that. For example, a fraud-detection model that automatically freezes a customer’s account: freezing a legitimate customer’s account (a false positive) causes real harm and support cost, so the model should only act when it is very confident, even if that means a few actual fraud cases initially slip through and get caught by other means.</p>
+<p>These examples map directly onto the confusion matrices above: the 0.2 threshold is the “cast a wide net” setting (lower FN, higher FP), and the 0.8 threshold is the “only act when confident” setting (lower FP, slightly higher FN). Accuracy alone would not have surfaced this tradeoff, since all three thresholds scored within about three points of each other on accuracy despite meaningfully different confusion matrices.</p>
 </section>
 <section id="conclusions" class="level2">
 <h2 class="anchored" data-anchor-id="conclusions">Conclusions</h2>
-<p>The model clears the null error rate baseline by a wide margin at every threshold tested: 91.4%-94.6% accuracy against a 58.06% majority-class baseline (41.94% null error rate), so the underlying classifier has real predictive skill and the choice among 0.2/0.5/0.8 is a question of which errors to prefer, not whether the model is any good. In this dataset specifically, raising the threshold from 0.2 to 0.8 was close to a free lunch – precision and accuracy improved while recall barely moved – but that is a consequence of <code>.pred_female</code> being strongly bimodal for this sample of 93 penguins, not a general rule. I would not recommend defaulting to the highest threshold on a different dataset without re-running this same comparison, since a classifier with less separated probabilities would show a real recall cost for that same precision gain.</p>
-<p>For recommending a single threshold in practice, I’d tie it to the cost ratio of the two error types: a screening/triage use case where missing a female penguin is worse than a wasted follow-up review should use something closer to 0.2, while a use case that acts automatically on a “female” prediction (and where that action is costly or hard to reverse) should use something closer to 0.8. Given this data, I would not use plain accuracy to make that call, since it treats a false positive and false negative as equally costly, which is rarely true outside of a null-model comparison.</p>
-<p>To extend or verify this work, I’d want to: (1) evaluate the model on a held-out or resampled set rather than the same 93 rows used to pick a threshold, since threshold selection on the evaluation set risks overfitting the cutoff to this particular sample; (2) plot a full ROC or precision-recall curve across all thresholds (not just 0.2/0.5/0.8) to see whether the “free” precision gain observed here holds across the whole range or is specific to these three points; and (3) check the model’s calibration (e.g., a reliability plot of predicted probability vs. observed frequency) to confirm the bimodal <code>.pred_female</code> distribution reflects genuinely confident, well-calibrated predictions rather than an overconfident model.</p>
+<p>All three thresholds substantially outperform the null error rate baseline, confirming the model has real predictive value beyond guessing the majority class. There is no single “correct” threshold in the abstract – 0.2 favors catching more true positives at the expense of more false alarms, while 0.8 favors precision and minimizes false alarms at the expense of a few more missed positives. Choosing between them is a business decision about which error type is more costly in the specific application, not a modeling decision.</p>
+<p>To extend or verify this work, I’d want to: (1) evaluate the model on a held-out or resampled set rather than the same 93 rows used to pick a threshold, since threshold selection on the evaluation set risks overfitting the cutoff to this particular sample; (2) plot a full ROC or precision-recall curve across all thresholds, not just 0.2/0.5/0.8, to see whether these three points represent the full range of tradeoffs available; and (3) check the model’s calibration (e.g., a reliability plot of predicted probability vs. observed frequency) to confirm the model’s confident predictions are genuinely well-calibrated rather than overconfident.</p>
 </section>
 <section id="ai-disclosure-and-citation" class="level2">
 <h2 class="anchored" data-anchor-id="ai-disclosure-and-citation">AI disclosure and citation</h2>
 <p>I used OpenAI’s ChatGPT to help organize the analysis plan and draft the “Approach,” “Check the data and baseline,” “Compare thresholds,” and “What I will discuss” sections of this document from the assignment instructions. Those sections describe planned work rather than completed results.</p>
-<p>I used Claude Code (Anthropic) to write the R code that loads and validates <code>penguin_predictions.csv</code> from its raw GitHub URL, computes the class balance and null error rate, builds the confusion matrices, and calculates accuracy/precision/recall/F1 at thresholds 0.2, 0.5, and 0.8. Claude Code ran the equivalent logic directly against the CSV to verify the code’s output, then rendered this document end-to-end with a local R/Quarto install to confirm it knits without errors before writing the results into this document. It drafted the “Load and validate the data,” “Class balance and null error rate,” “Threshold comparison,” “Results,” “Discussion,” and “Conclusions” sections, along with this disclosure section, based on those verified results.</p>
+<p>I used Claude (Anthropic, Sonnet 5, accessed via Claude for Cowork) to draft the executed R analysis: loading and validating the data, the class-balance summary and bar chart, the <code>confusion_and_metrics()</code> function, the confusion matrices, the results table, and the concrete low- vs. high-threshold examples in the Discussion section.</p>
+<p>I used Claude Code (Anthropic, Sonnet 5, this CLI harness) to merge that executed analysis into this single continuous document alongside the original ChatGPT-drafted planning sections (per the assignment’s requirement to continue in the same file as the Approach deliverable), independently re-verify the null error rate, confusion matrix counts, and accuracy/precision/recall/F1 at all three thresholds against the raw CSV before merging, and fix two issues found while reviewing the code: the confusion-matrix cells originally had false positives and false negatives swapped due to a <code>matrix()</code> fill-order bug, and the CSV was being loaded from a local file path rather than a URL, which the course syllabus requires for reproducibility in the instructor’s environment. Claude Code then rendered this merged document end-to-end against the live raw GitHub URL to confirm it knits without errors and that every number matches the independently verified values.</p>
 <p>AI citations:</p>
 <p>OpenAI. (2026). <em>ChatGPT (GPT-5.6 Sol)</em> [Large language model]. Accessed September 10, 2026. <a href="https://chatgpt.com/" class="uri">https://chatgpt.com/</a>.</p>
-<p>Anthropic. (2026). <em>Claude Code (Sonnet 5)</em> [Large language model software]. Accessed September 13, 2026. <a href="https://claude.com/claude-code" class="uri">https://claude.com/claude-code</a>.</p>
+<p>Anthropic. (2026). <em>Claude (Sonnet 5)</em> [Large language model]. Accessed September 14, 2026. <a href="https://claude.ai/" class="uri">https://claude.ai/</a>.</p>
+<p>Anthropic. (2026). <em>Claude Code (Sonnet 5)</em> [Computer software]. <a href="https://claude.com/product/claude-code" class="uri">https://claude.com/product/claude-code</a>. Accessed September 14, 2026.</p>
 <!-- -->
 
 </section>
@@ -4360,215 +4306,238 @@ Predicted female male
     }
   });
   </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb11" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> &quot;Week 2B Approach: Evaluating Classification Model Performance&quot;</span></span>
-<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> &quot;Dillon Leeper&quot;</span></span>
-<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> &quot;2026-09-10&quot;</span></span>
-<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
-<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
-<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a><span class="co">    theme: cosmo</span></span>
-<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a><span class="co">    toc: true</span></span>
-<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-location: left</span></span>
-<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-depth: 3</span></span>
-<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
-<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a><span class="co">    df-print: paged</span></span>
-<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a><span class="co">    smooth-scroll: true</span></span>
-<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a><span class="co">    embed-resources: true</span></span>
-<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a><span class="an">execute:</span></span>
-<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a><span class="co">  warning: false</span></span>
-<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a><span class="co">  message: false</span></span>
-<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a><span class="an">editor:</span><span class="co"> visual</span></span>
-<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a><span class="fu">## Approach</span></span>
-<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>I plan to use the provided penguin predictions data in R to see how changing the probability threshold affects a binary classification model. I will use <span class="in">`sex`</span> as the actual class and <span class="in">`.pred_female`</span> as the predicted probability of female. I will treat female as the positive class throughout the analysis.</span>
-<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a><span class="fu">## Check the data and baseline</span></span>
-<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>First, I will load the CSV into R and check the column types, missing values, and class labels. I will also check that <span class="in">`.pred_female`</span> is between 0 and 1. If actual labels or probabilities are missing, I will report how many rows are affected and use the same complete rows for all three threshold comparisons.</span>
-<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a>I will count the female and male observations and calculate their proportions to check class balance. Then I will calculate the null error rate: the proportion of observations that would be wrong if I always predicted the most common class. This is <span class="in">`1 - proportion in the majority class`</span>. I will compare the model&#39;s error rate with that baseline, or compare accuracy with the corresponding majority-class accuracy.</span>
-<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a><span class="fu">## Compare thresholds</span></span>
-<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a>I will create new predicted classes at thresholds of 0.2, 0.5, and 0.8. At each threshold, I will predict female when <span class="in">`.pred_female`</span> is greater than or equal to the threshold and male otherwise. I will derive these predictions from the probabilities instead of reusing <span class="in">`.pred_class`</span> for every threshold.</span>
-<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>For each threshold, I will build a confusion matrix comparing the new predictions with <span class="in">`sex`</span>. Using female as the positive class, I will identify true positives, false positives, true negatives, and false negatives. Then I will calculate:</span>
-<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Accuracy: <span class="in">`(TP + TN) / (TP + TN + FP + FN)`</span></span>
-<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Precision: <span class="in">`TP / (TP + FP)`</span></span>
-<span id="cb11-42"><a href="#cb11-42" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Recall: <span class="in">`TP / (TP + FN)`</span></span>
-<span id="cb11-43"><a href="#cb11-43" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>F1: <span class="in">`2 * TP / (2 * TP + FP + FN)`</span></span>
-<span id="cb11-44"><a href="#cb11-44" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-45"><a href="#cb11-45" aria-hidden="true" tabindex="-1"></a>If a metric has a zero denominator, I will report it as undefined (<span class="in">`NA`</span>) and explain why. I will put the metrics for all three thresholds in one table so that the differences are easy to compare.</span>
-<span id="cb11-46"><a href="#cb11-46" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-47"><a href="#cb11-47" aria-hidden="true" tabindex="-1"></a><span class="fu">## What I will discuss</span></span>
-<span id="cb11-48"><a href="#cb11-48" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-49"><a href="#cb11-49" aria-hidden="true" tabindex="-1"></a>I expect a lower threshold to classify more observations as female. This can help catch more actual positives, but it can also create more false positives. A higher threshold requires a larger predicted probability before assigning the positive class, so it can miss more actual positives. I will use the results to see how precision, recall, and F1 change rather than assuming that the highest threshold is best.</span>
-<span id="cb11-50"><a href="#cb11-50" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-51"><a href="#cb11-51" aria-hidden="true" tabindex="-1"></a>For a low-threshold use case, I will discuss flagging items for a second review when missing a positive would be costly. For a high-threshold use case, I will discuss an alert that triggers a costly action, where false positives would be a bigger concern. I will connect these examples to the confusion matrices and explain why accuracy alone may not be enough to choose a threshold.</span>
-<span id="cb11-52"><a href="#cb11-52" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-53"><a href="#cb11-53" aria-hidden="true" tabindex="-1"></a><span class="fu">## Load and validate the data</span></span>
-<span id="cb11-54"><a href="#cb11-54" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-55"><a href="#cb11-55" aria-hidden="true" tabindex="-1"></a><span class="in">```{r setup, message=FALSE, warning=FALSE}</span></span>
-<span id="cb11-56"><a href="#cb11-56" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
-<span id="cb11-57"><a href="#cb11-57" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
-<span id="cb11-58"><a href="#cb11-58" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span>
-<span id="cb11-59"><a href="#cb11-59" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-60"><a href="#cb11-60" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-61"><a href="#cb11-61" aria-hidden="true" tabindex="-1"></a><span class="in">```{r load-data}</span></span>
-<span id="cb11-62"><a href="#cb11-62" aria-hidden="true" tabindex="-1"></a>preds <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
-<span id="cb11-63"><a href="#cb11-63" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week02/2b/penguin_predictions.csv&quot;</span>,</span>
-<span id="cb11-64"><a href="#cb11-64" aria-hidden="true" tabindex="-1"></a>  <span class="at">show_col_types =</span> <span class="cn">FALSE</span></span>
-<span id="cb11-65"><a href="#cb11-65" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb11-66"><a href="#cb11-66" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(preds)</span>
-<span id="cb11-67"><a href="#cb11-67" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-68"><a href="#cb11-68" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-69"><a href="#cb11-69" aria-hidden="true" tabindex="-1"></a><span class="in">```{r data-quality}</span></span>
-<span id="cb11-70"><a href="#cb11-70" aria-hidden="true" tabindex="-1"></a>data_quality <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb11-71"><a href="#cb11-71" aria-hidden="true" tabindex="-1"></a>  <span class="at">check =</span> <span class="fu">c</span>(</span>
-<span id="cb11-72"><a href="#cb11-72" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Rows loaded&quot;</span>,</span>
-<span id="cb11-73"><a href="#cb11-73" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Missing sex&quot;</span>,</span>
-<span id="cb11-74"><a href="#cb11-74" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Missing .pred_female&quot;</span>,</span>
-<span id="cb11-75"><a href="#cb11-75" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Out-of-range .pred_female (outside [0, 1])&quot;</span>,</span>
-<span id="cb11-76"><a href="#cb11-76" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;Distinct sex labels&quot;</span></span>
-<span id="cb11-77"><a href="#cb11-77" aria-hidden="true" tabindex="-1"></a>  ),</span>
-<span id="cb11-78"><a href="#cb11-78" aria-hidden="true" tabindex="-1"></a>  <span class="at">result =</span> <span class="fu">c</span>(</span>
-<span id="cb11-79"><a href="#cb11-79" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nrow</span>(preds),</span>
-<span id="cb11-80"><a href="#cb11-80" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(<span class="fu">is.na</span>(preds<span class="sc">$</span>sex)),</span>
-<span id="cb11-81"><a href="#cb11-81" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(<span class="fu">is.na</span>(preds<span class="sc">$</span>.pred_female)),</span>
-<span id="cb11-82"><a href="#cb11-82" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sum</span>(preds<span class="sc">$</span>.pred_female <span class="sc">&lt;</span> <span class="dv">0</span> <span class="sc">|</span> preds<span class="sc">$</span>.pred_female <span class="sc">&gt;</span> <span class="dv">1</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
-<span id="cb11-83"><a href="#cb11-83" aria-hidden="true" tabindex="-1"></a>    <span class="fu">paste</span>(<span class="fu">sort</span>(<span class="fu">unique</span>(preds<span class="sc">$</span>sex)), <span class="at">collapse =</span> <span class="st">&quot;, &quot;</span>)</span>
-<span id="cb11-84"><a href="#cb11-84" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb11-85"><a href="#cb11-85" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb11-86"><a href="#cb11-86" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-87"><a href="#cb11-87" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(data_quality, <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">&quot;Check&quot;</span>, <span class="st">&quot;Result&quot;</span>))</span>
-<span id="cb11-88"><a href="#cb11-88" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-89"><a href="#cb11-89" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-90"><a href="#cb11-90" aria-hidden="true" tabindex="-1"></a>The data loaded cleanly: 93 rows, no missing values in <span class="in">`sex`</span> or <span class="in">`.pred_female`</span>, no probabilities outside <span class="in">`[0, 1]`</span>, and exactly two <span class="in">`sex`</span> labels (<span class="in">`female`</span>, <span class="in">`male`</span>). Since nothing needs to be dropped, all 93 rows are used for the baseline and for all three threshold comparisons below.</span>
-<span id="cb11-91"><a href="#cb11-91" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-92"><a href="#cb11-92" aria-hidden="true" tabindex="-1"></a>As a sanity check, I also compared a class derived from <span class="in">`.pred_female &gt;= 0.5`</span> against the <span class="in">`.pred_class`</span> column already in the file, and the two matched for every row -- confirming <span class="in">`.pred_class`</span> was generated at the standard 0.5 cutoff and that my threshold logic reproduces it correctly before applying it at 0.2 and 0.8.</span>
-<span id="cb11-93"><a href="#cb11-93" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-94"><a href="#cb11-94" aria-hidden="true" tabindex="-1"></a><span class="fu">## Class balance and null error rate</span></span>
-<span id="cb11-95"><a href="#cb11-95" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-96"><a href="#cb11-96" aria-hidden="true" tabindex="-1"></a><span class="in">```{r class-balance}</span></span>
-<span id="cb11-97"><a href="#cb11-97" aria-hidden="true" tabindex="-1"></a>class_counts <span class="ot">&lt;-</span> preds <span class="sc">|&gt;</span></span>
-<span id="cb11-98"><a href="#cb11-98" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(sex) <span class="sc">|&gt;</span></span>
-<span id="cb11-99"><a href="#cb11-99" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">proportion =</span> <span class="fu">round</span>(n <span class="sc">/</span> <span class="fu">sum</span>(n), <span class="dv">4</span>))</span>
-<span id="cb11-100"><a href="#cb11-100" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-101"><a href="#cb11-101" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(class_counts, <span class="at">col.names =</span> <span class="fu">c</span>(<span class="st">&quot;Sex&quot;</span>, <span class="st">&quot;n&quot;</span>, <span class="st">&quot;Proportion&quot;</span>))</span>
-<span id="cb11-102"><a href="#cb11-102" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-103"><a href="#cb11-103" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-104"><a href="#cb11-104" aria-hidden="true" tabindex="-1"></a><span class="in">```{r null-error-rate}</span></span>
-<span id="cb11-105"><a href="#cb11-105" aria-hidden="true" tabindex="-1"></a>majority_class <span class="ot">&lt;-</span> class_counts<span class="sc">$</span>sex[<span class="fu">which.max</span>(class_counts<span class="sc">$</span>n)]</span>
-<span id="cb11-106"><a href="#cb11-106" aria-hidden="true" tabindex="-1"></a>majority_prop  <span class="ot">&lt;-</span> <span class="fu">max</span>(class_counts<span class="sc">$</span>proportion)</span>
-<span id="cb11-107"><a href="#cb11-107" aria-hidden="true" tabindex="-1"></a>null_error_rate <span class="ot">&lt;-</span> <span class="fu">round</span>(<span class="dv">1</span> <span class="sc">-</span> majority_prop, <span class="dv">4</span>)</span>
-<span id="cb11-108"><a href="#cb11-108" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-109"><a href="#cb11-109" aria-hidden="true" tabindex="-1"></a><span class="fu">data.frame</span>(</span>
-<span id="cb11-110"><a href="#cb11-110" aria-hidden="true" tabindex="-1"></a>  <span class="at">majority_class =</span> majority_class,</span>
-<span id="cb11-111"><a href="#cb11-111" aria-hidden="true" tabindex="-1"></a>  <span class="at">majority_class_accuracy =</span> majority_prop,</span>
-<span id="cb11-112"><a href="#cb11-112" aria-hidden="true" tabindex="-1"></a>  <span class="at">null_error_rate =</span> null_error_rate</span>
-<span id="cb11-113"><a href="#cb11-113" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb11-114"><a href="#cb11-114" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-115"><a href="#cb11-115" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-116"><a href="#cb11-116" aria-hidden="true" tabindex="-1"></a>Of the 93 penguins, 39 (41.94%) are female and 54 (58.06%) are male, so <span class="in">`male`</span> is the majority class. Always predicting <span class="in">`male`</span> would be right 58.06% of the time, giving a **null error rate of 41.94%**. Any threshold the model is evaluated at needs to clear that baseline to be worth using.</span>
-<span id="cb11-117"><a href="#cb11-117" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-118"><a href="#cb11-118" aria-hidden="true" tabindex="-1"></a><span class="fu">## Threshold comparison: confusion matrices and metrics</span></span>
-<span id="cb11-119"><a href="#cb11-119" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-120"><a href="#cb11-120" aria-hidden="true" tabindex="-1"></a><span class="in">```{r metrics-function}</span></span>
-<span id="cb11-121"><a href="#cb11-121" aria-hidden="true" tabindex="-1"></a>compute_metrics <span class="ot">&lt;-</span> <span class="cf">function</span>(data, threshold) {</span>
-<span id="cb11-122"><a href="#cb11-122" aria-hidden="true" tabindex="-1"></a>  pred_class <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(data<span class="sc">$</span>.pred_female <span class="sc">&gt;=</span> threshold, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>)</span>
-<span id="cb11-123"><a href="#cb11-123" aria-hidden="true" tabindex="-1"></a>  actual <span class="ot">&lt;-</span> data<span class="sc">$</span>sex</span>
-<span id="cb11-124"><a href="#cb11-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-125"><a href="#cb11-125" aria-hidden="true" tabindex="-1"></a>  TP <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred_class <span class="sc">==</span> <span class="st">&quot;female&quot;</span> <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;female&quot;</span>)</span>
-<span id="cb11-126"><a href="#cb11-126" aria-hidden="true" tabindex="-1"></a>  FP <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred_class <span class="sc">==</span> <span class="st">&quot;female&quot;</span> <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;male&quot;</span>)</span>
-<span id="cb11-127"><a href="#cb11-127" aria-hidden="true" tabindex="-1"></a>  TN <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred_class <span class="sc">==</span> <span class="st">&quot;male&quot;</span>  <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;male&quot;</span>)</span>
-<span id="cb11-128"><a href="#cb11-128" aria-hidden="true" tabindex="-1"></a>  FN <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred_class <span class="sc">==</span> <span class="st">&quot;male&quot;</span>  <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;female&quot;</span>)</span>
-<span id="cb11-129"><a href="#cb11-129" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-130"><a href="#cb11-130" aria-hidden="true" tabindex="-1"></a>  accuracy  <span class="ot">&lt;-</span> (TP <span class="sc">+</span> TN) <span class="sc">/</span> (TP <span class="sc">+</span> TN <span class="sc">+</span> FP <span class="sc">+</span> FN)</span>
-<span id="cb11-131"><a href="#cb11-131" aria-hidden="true" tabindex="-1"></a>  precision <span class="ot">&lt;-</span> <span class="cf">if</span> (TP <span class="sc">+</span> FP <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> TP <span class="sc">/</span> (TP <span class="sc">+</span> FP)</span>
-<span id="cb11-132"><a href="#cb11-132" aria-hidden="true" tabindex="-1"></a>  recall    <span class="ot">&lt;-</span> <span class="cf">if</span> (TP <span class="sc">+</span> FN <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> TP <span class="sc">/</span> (TP <span class="sc">+</span> FN)</span>
-<span id="cb11-133"><a href="#cb11-133" aria-hidden="true" tabindex="-1"></a>  f1        <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">is.na</span>(precision) <span class="sc">||</span> <span class="fu">is.na</span>(recall) <span class="sc">||</span> (precision <span class="sc">+</span> recall) <span class="sc">==</span> <span class="dv">0</span>) {</span>
-<span id="cb11-134"><a href="#cb11-134" aria-hidden="true" tabindex="-1"></a>    <span class="cn">NA_real_</span></span>
-<span id="cb11-135"><a href="#cb11-135" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
-<span id="cb11-136"><a href="#cb11-136" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span> <span class="sc">*</span> precision <span class="sc">*</span> recall <span class="sc">/</span> (precision <span class="sc">+</span> recall)</span>
-<span id="cb11-137"><a href="#cb11-137" aria-hidden="true" tabindex="-1"></a>  }</span>
-<span id="cb11-138"><a href="#cb11-138" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-139"><a href="#cb11-139" aria-hidden="true" tabindex="-1"></a>  <span class="fu">data.frame</span>(</span>
-<span id="cb11-140"><a href="#cb11-140" aria-hidden="true" tabindex="-1"></a>    <span class="at">threshold =</span> threshold,</span>
-<span id="cb11-141"><a href="#cb11-141" aria-hidden="true" tabindex="-1"></a>    <span class="at">TP =</span> TP, <span class="at">FP =</span> FP, <span class="at">TN =</span> TN, <span class="at">FN =</span> FN,</span>
-<span id="cb11-142"><a href="#cb11-142" aria-hidden="true" tabindex="-1"></a>    <span class="at">accuracy =</span> <span class="fu">round</span>(accuracy, <span class="dv">4</span>),</span>
-<span id="cb11-143"><a href="#cb11-143" aria-hidden="true" tabindex="-1"></a>    <span class="at">precision =</span> <span class="fu">round</span>(precision, <span class="dv">4</span>),</span>
-<span id="cb11-144"><a href="#cb11-144" aria-hidden="true" tabindex="-1"></a>    <span class="at">recall =</span> <span class="fu">round</span>(recall, <span class="dv">4</span>),</span>
-<span id="cb11-145"><a href="#cb11-145" aria-hidden="true" tabindex="-1"></a>    <span class="at">f1 =</span> <span class="fu">round</span>(f1, <span class="dv">4</span>)</span>
-<span id="cb11-146"><a href="#cb11-146" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb11-147"><a href="#cb11-147" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb11-148"><a href="#cb11-148" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-149"><a href="#cb11-149" aria-hidden="true" tabindex="-1"></a>thresholds <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.2</span>, <span class="fl">0.5</span>, <span class="fl">0.8</span>)</span>
-<span id="cb11-150"><a href="#cb11-150" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-151"><a href="#cb11-151" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-152"><a href="#cb11-152" aria-hidden="true" tabindex="-1"></a><span class="in">```{r confusion-matrices}</span></span>
-<span id="cb11-153"><a href="#cb11-153" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (t <span class="cf">in</span> thresholds) {</span>
-<span id="cb11-154"><a href="#cb11-154" aria-hidden="true" tabindex="-1"></a>  pred_class <span class="ot">&lt;-</span> <span class="fu">factor</span>(<span class="fu">ifelse</span>(preds<span class="sc">$</span>.pred_female <span class="sc">&gt;=</span> t, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>),</span>
-<span id="cb11-155"><a href="#cb11-155" aria-hidden="true" tabindex="-1"></a>                        <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>))</span>
-<span id="cb11-156"><a href="#cb11-156" aria-hidden="true" tabindex="-1"></a>  actual <span class="ot">&lt;-</span> <span class="fu">factor</span>(preds<span class="sc">$</span>sex, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>))</span>
-<span id="cb11-157"><a href="#cb11-157" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Threshold =&quot;</span>, t, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb11-158"><a href="#cb11-158" aria-hidden="true" tabindex="-1"></a>  <span class="fu">print</span>(<span class="fu">table</span>(<span class="at">Predicted =</span> pred_class, <span class="at">Actual =</span> actual))</span>
-<span id="cb11-159"><a href="#cb11-159" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb11-160"><a href="#cb11-160" aria-hidden="true" tabindex="-1"></a>}</span>
-<span id="cb11-161"><a href="#cb11-161" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-162"><a href="#cb11-162" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-163"><a href="#cb11-163" aria-hidden="true" tabindex="-1"></a><span class="in">```{r metrics-table}</span></span>
-<span id="cb11-164"><a href="#cb11-164" aria-hidden="true" tabindex="-1"></a>metrics_table <span class="ot">&lt;-</span> dplyr<span class="sc">::</span><span class="fu">bind_rows</span>(<span class="fu">lapply</span>(thresholds, <span class="cf">function</span>(t) <span class="fu">compute_metrics</span>(preds, t)))</span>
-<span id="cb11-165"><a href="#cb11-165" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(metrics_table)</span>
-<span id="cb11-166"><a href="#cb11-166" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb11-167"><a href="#cb11-167" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-168"><a href="#cb11-168" aria-hidden="true" tabindex="-1"></a><span class="fu">## Results</span></span>
-<span id="cb11-169"><a href="#cb11-169" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-170"><a href="#cb11-170" aria-hidden="true" tabindex="-1"></a>Treating female as the positive class, the confusion matrices and metrics at each threshold are:</span>
-<span id="cb11-171"><a href="#cb11-171" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-172"><a href="#cb11-172" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> Threshold <span class="pp">|</span> TP  <span class="pp">|</span> FP  <span class="pp">|</span> TN  <span class="pp">|</span> FN  <span class="pp">|</span> Accuracy <span class="pp">|</span> Precision <span class="pp">|</span> Recall <span class="pp">|</span> F1     <span class="pp">|</span></span>
-<span id="cb11-173"><a href="#cb11-173" aria-hidden="true" tabindex="-1"></a><span class="pp">|-----------|-----|-----|-----|-----|----------|-----------|--------|--------|</span></span>
-<span id="cb11-174"><a href="#cb11-174" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 0.2       <span class="pp">|</span> 37  <span class="pp">|</span> 6   <span class="pp">|</span> 48  <span class="pp">|</span> 2   <span class="pp">|</span> 0.9140   <span class="pp">|</span> 0.8605    <span class="pp">|</span> 0.9487 <span class="pp">|</span> 0.9024 <span class="pp">|</span></span>
-<span id="cb11-175"><a href="#cb11-175" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 0.5       <span class="pp">|</span> 36  <span class="pp">|</span> 3   <span class="pp">|</span> 51  <span class="pp">|</span> 3   <span class="pp">|</span> 0.9355   <span class="pp">|</span> 0.9231    <span class="pp">|</span> 0.9231 <span class="pp">|</span> 0.9231 <span class="pp">|</span></span>
-<span id="cb11-176"><a href="#cb11-176" aria-hidden="true" tabindex="-1"></a><span class="pp">|</span> 0.8       <span class="pp">|</span> 36  <span class="pp">|</span> 2   <span class="pp">|</span> 52  <span class="pp">|</span> 3   <span class="pp">|</span> 0.9462   <span class="pp">|</span> 0.9474    <span class="pp">|</span> 0.9231 <span class="pp">|</span> 0.9351 <span class="pp">|</span></span>
-<span id="cb11-177"><a href="#cb11-177" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-178"><a href="#cb11-178" aria-hidden="true" tabindex="-1"></a>No metric hit a zero denominator at any threshold, so all four are defined at 0.2, 0.5, and 0.8. Every threshold beats the 58.06% null-model accuracy by a wide margin, so the model has real skill regardless of where the cutoff is set.</span>
-<span id="cb11-179"><a href="#cb11-179" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-180"><a href="#cb11-180" aria-hidden="true" tabindex="-1"></a><span class="fu">## Discussion: which threshold, and when</span></span>
-<span id="cb11-181"><a href="#cb11-181" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-182"><a href="#cb11-182" aria-hidden="true" tabindex="-1"></a>Moving the threshold from 0.2 to 0.8 mostly removed false positives (6 -<span class="sc">\&gt;</span> 3 -<span class="sc">\&gt;</span> 2) while adding only one extra false negative (2 -<span class="sc">\&gt;</span> 3, then holding at 3), so in this particular dataset accuracy, precision, and F1 all improve somewhat as the threshold rises, and recall drops only slightly and then holds steady between 0.5 and 0.8. That is a narrower version of the tradeoff I expected in the Approach section above, not a contradiction of it: most of <span class="in">`.pred_female`</span>&#39;s values sit very close to 0 or to 1 (see the raw CSV), so the model rarely produces a genuinely borderline probability, and there are few penguins for the threshold to &quot;flip&quot; between 0.2 and 0.8. A less confident, more poorly separated classifier would show a sharper precision/recall tradeoff across the same three thresholds. This is a property of how well this specific model&#39;s probabilities are calibrated on this data, not something to assume of every classifier.</span>
-<span id="cb11-183"><a href="#cb11-183" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-184"><a href="#cb11-184" aria-hidden="true" tabindex="-1"></a>That said, the two ends of the tradeoff still point to different use cases, which is the more general lesson:</span>
-<span id="cb11-185"><a href="#cb11-185" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-186"><a href="#cb11-186" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Lower threshold (e.g., 0.2):** appropriate when missing an actual female (a false negative) is costlier than a false positive -- for example, flagging observations for a second human review before a final call. At 0.2, recall is highest (0.9487), catching more true positives at the cost of more false alarms (FP = 6) that a reviewer would need to clear.</span>
-<span id="cb11-187"><a href="#cb11-187" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Higher threshold (e.g., 0.8):** appropriate when acting on a false positive is the expensive mistake -- for example, an automated alert or downstream action that shouldn&#39;t fire without strong evidence. At 0.8, precision is highest (0.9474) and false positives are fewest (FP = 2), at no additional recall cost compared to 0.5 in this dataset.</span>
-<span id="cb11-188"><a href="#cb11-188" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-189"><a href="#cb11-189" aria-hidden="true" tabindex="-1"></a>Accuracy alone would rank 0.8 as &quot;best&quot; and stop there, but it hides that 0.8 buys its precision gain over 0.5 for free here (recall is unchanged), while the gain from 0.5 down to 0.2 trades three fewer false negatives for three more false positives. Which threshold is actually preferable depends on whether the downstream cost of a false negative or a false positive is higher for the specific use case, not on accuracy in isolation.</span>
-<span id="cb11-190"><a href="#cb11-190" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-191"><a href="#cb11-191" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conclusions</span></span>
-<span id="cb11-192"><a href="#cb11-192" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-193"><a href="#cb11-193" aria-hidden="true" tabindex="-1"></a>The model clears the null error rate baseline by a wide margin at every threshold tested: 91.4%-94.6% accuracy against a 58.06% majority-class baseline (41.94% null error rate), so the underlying classifier has real predictive skill and the choice among 0.2/0.5/0.8 is a question of which errors to prefer, not whether the model is any good. In this dataset specifically, raising the threshold from 0.2 to 0.8 was close to a free lunch -- precision and accuracy improved while recall barely moved -- but that is a consequence of <span class="in">`.pred_female`</span> being strongly bimodal for this sample of 93 penguins, not a general rule. I would not recommend defaulting to the highest threshold on a different dataset without re-running this same comparison, since a classifier with less separated probabilities would show a real recall cost for that same precision gain.</span>
-<span id="cb11-194"><a href="#cb11-194" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-195"><a href="#cb11-195" aria-hidden="true" tabindex="-1"></a>For recommending a single threshold in practice, I&#39;d tie it to the cost ratio of the two error types: a screening/triage use case where missing a female penguin is worse than a wasted follow-up review should use something closer to 0.2, while a use case that acts automatically on a &quot;female&quot; prediction (and where that action is costly or hard to reverse) should use something closer to 0.8. Given this data, I would not use plain accuracy to make that call, since it treats a false positive and false negative as equally costly, which is rarely true outside of a null-model comparison.</span>
-<span id="cb11-196"><a href="#cb11-196" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-197"><a href="#cb11-197" aria-hidden="true" tabindex="-1"></a>To extend or verify this work, I&#39;d want to: (1) evaluate the model on a held-out or resampled set rather than the same 93 rows used to pick a threshold, since threshold selection on the evaluation set risks overfitting the cutoff to this particular sample; (2) plot a full ROC or precision-recall curve across all thresholds (not just 0.2/0.5/0.8) to see whether the &quot;free&quot; precision gain observed here holds across the whole range or is specific to these three points; and (3) check the model&#39;s calibration (e.g., a reliability plot of predicted probability vs. observed frequency) to confirm the bimodal <span class="in">`.pred_female`</span> distribution reflects genuinely confident, well-calibrated predictions rather than an overconfident model.</span>
-<span id="cb11-198"><a href="#cb11-198" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-199"><a href="#cb11-199" aria-hidden="true" tabindex="-1"></a><span class="fu">## AI disclosure and citation</span></span>
-<span id="cb11-200"><a href="#cb11-200" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-201"><a href="#cb11-201" aria-hidden="true" tabindex="-1"></a>I used OpenAI&#39;s ChatGPT to help organize the analysis plan and draft the &quot;Approach,&quot; &quot;Check the data and baseline,&quot; &quot;Compare thresholds,&quot; and &quot;What I will discuss&quot; sections of this document from the assignment instructions. Those sections describe planned work rather than completed results.</span>
-<span id="cb11-202"><a href="#cb11-202" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-203"><a href="#cb11-203" aria-hidden="true" tabindex="-1"></a>I used Claude Code (Anthropic) to write the R code that loads and validates <span class="in">`penguin_predictions.csv`</span> from its raw GitHub URL, computes the class balance and null error rate, builds the confusion matrices, and calculates accuracy/precision/recall/F1 at thresholds 0.2, 0.5, and 0.8. Claude Code ran the equivalent logic directly against the CSV to verify the code&#39;s output, then rendered this document end-to-end with a local R/Quarto install to confirm it knits without errors before writing the results into this document. It drafted the &quot;Load and validate the data,&quot; &quot;Class balance and null error rate,&quot; &quot;Threshold comparison,&quot; &quot;Results,&quot; &quot;Discussion,&quot; and &quot;Conclusions&quot; sections, along with this disclosure section, based on those verified results.</span>
-<span id="cb11-204"><a href="#cb11-204" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-205"><a href="#cb11-205" aria-hidden="true" tabindex="-1"></a>AI citations:</span>
-<span id="cb11-206"><a href="#cb11-206" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-207"><a href="#cb11-207" aria-hidden="true" tabindex="-1"></a>OpenAI. (2026). *ChatGPT (GPT-5.6 Sol)* <span class="sc">\[</span>Large language model<span class="sc">\]</span>. Accessed September 10, 2026. <span class="ot">&lt;https://chatgpt.com/&gt;</span>.</span>
-<span id="cb11-208"><a href="#cb11-208" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb11-209"><a href="#cb11-209" aria-hidden="true" tabindex="-1"></a>Anthropic. (2026). *Claude Code (Sonnet 5)* <span class="sc">\[</span>Large language model software<span class="sc">\]</span>. Accessed September 13, 2026. <span class="ot">&lt;https://claude.com/claude-code&gt;</span>.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb26" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> &quot;Week 2B Approach: Evaluating Classification Model Performance&quot;</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> &quot;Dillon Leeper&quot;</span></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> &quot;2026-09-10&quot;</span></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a><span class="an">format:</span></span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a><span class="co">  html:</span></span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a><span class="co">    theme: cosmo</span></span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a><span class="co">    toc: true</span></span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-location: left</span></span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a><span class="co">    toc-depth: 3</span></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a><span class="co">    code-tools: true</span></span>
+<span id="cb26-12"><a href="#cb26-12" aria-hidden="true" tabindex="-1"></a><span class="co">    df-print: paged</span></span>
+<span id="cb26-13"><a href="#cb26-13" aria-hidden="true" tabindex="-1"></a><span class="co">    smooth-scroll: true</span></span>
+<span id="cb26-14"><a href="#cb26-14" aria-hidden="true" tabindex="-1"></a><span class="co">    embed-resources: true</span></span>
+<span id="cb26-15"><a href="#cb26-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-16"><a href="#cb26-16" aria-hidden="true" tabindex="-1"></a><span class="an">execute:</span></span>
+<span id="cb26-17"><a href="#cb26-17" aria-hidden="true" tabindex="-1"></a><span class="co">  warning: false</span></span>
+<span id="cb26-18"><a href="#cb26-18" aria-hidden="true" tabindex="-1"></a><span class="co">  message: false</span></span>
+<span id="cb26-19"><a href="#cb26-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-20"><a href="#cb26-20" aria-hidden="true" tabindex="-1"></a><span class="an">editor:</span><span class="co"> visual</span></span>
+<span id="cb26-21"><a href="#cb26-21" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb26-22"><a href="#cb26-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-23"><a href="#cb26-23" aria-hidden="true" tabindex="-1"></a><span class="fu">## Approach</span></span>
+<span id="cb26-24"><a href="#cb26-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-25"><a href="#cb26-25" aria-hidden="true" tabindex="-1"></a>I plan to use the provided penguin predictions data in R to see how changing the probability threshold affects a binary classification model. I will use <span class="in">`sex`</span> as the actual class and <span class="in">`.pred_female`</span> as the predicted probability of female. I will treat female as the positive class throughout the analysis.</span>
+<span id="cb26-26"><a href="#cb26-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-27"><a href="#cb26-27" aria-hidden="true" tabindex="-1"></a><span class="fu">## Check the data and baseline</span></span>
+<span id="cb26-28"><a href="#cb26-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-29"><a href="#cb26-29" aria-hidden="true" tabindex="-1"></a>First, I will load the CSV into R and check the column types, missing values, and class labels. I will also check that <span class="in">`.pred_female`</span> is between 0 and 1. If actual labels or probabilities are missing, I will report how many rows are affected and use the same complete rows for all three threshold comparisons.</span>
+<span id="cb26-30"><a href="#cb26-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-31"><a href="#cb26-31" aria-hidden="true" tabindex="-1"></a>I will count the female and male observations and calculate their proportions to check class balance. Then I will calculate the null error rate: the proportion of observations that would be wrong if I always predicted the most common class. This is <span class="in">`1 - proportion in the majority class`</span>. I will compare the model&#39;s error rate with that baseline, or compare accuracy with the corresponding majority-class accuracy.</span>
+<span id="cb26-32"><a href="#cb26-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-33"><a href="#cb26-33" aria-hidden="true" tabindex="-1"></a><span class="fu">## Compare thresholds</span></span>
+<span id="cb26-34"><a href="#cb26-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-35"><a href="#cb26-35" aria-hidden="true" tabindex="-1"></a>I will create new predicted classes at thresholds of 0.2, 0.5, and 0.8. At each threshold, I will predict female when <span class="in">`.pred_female`</span> is greater than or equal to the threshold and male otherwise. I will derive these predictions from the probabilities instead of reusing <span class="in">`.pred_class`</span> for every threshold.</span>
+<span id="cb26-36"><a href="#cb26-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-37"><a href="#cb26-37" aria-hidden="true" tabindex="-1"></a>For each threshold, I will build a confusion matrix comparing the new predictions with <span class="in">`sex`</span>. Using female as the positive class, I will identify true positives, false positives, true negatives, and false negatives. Then I will calculate:</span>
+<span id="cb26-38"><a href="#cb26-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-39"><a href="#cb26-39" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Accuracy: <span class="in">`(TP + TN) / (TP + TN + FP + FN)`</span></span>
+<span id="cb26-40"><a href="#cb26-40" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Precision: <span class="in">`TP / (TP + FP)`</span></span>
+<span id="cb26-41"><a href="#cb26-41" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Recall: <span class="in">`TP / (TP + FN)`</span></span>
+<span id="cb26-42"><a href="#cb26-42" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>F1: <span class="in">`2 * TP / (2 * TP + FP + FN)`</span></span>
+<span id="cb26-43"><a href="#cb26-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-44"><a href="#cb26-44" aria-hidden="true" tabindex="-1"></a>If a metric has a zero denominator, I will report it as undefined (<span class="in">`NA`</span>) and explain why. I will put the metrics for all three thresholds in one table so that the differences are easy to compare.</span>
+<span id="cb26-45"><a href="#cb26-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-46"><a href="#cb26-46" aria-hidden="true" tabindex="-1"></a><span class="fu">## What I will discuss</span></span>
+<span id="cb26-47"><a href="#cb26-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-48"><a href="#cb26-48" aria-hidden="true" tabindex="-1"></a>I expect a lower threshold to classify more observations as female. This can help catch more actual positives, but it can also create more false positives. A higher threshold requires a larger predicted probability before assigning the positive class, so it can miss more actual positives. I will use the results to see how precision, recall, and F1 change rather than assuming that the highest threshold is best.</span>
+<span id="cb26-49"><a href="#cb26-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-50"><a href="#cb26-50" aria-hidden="true" tabindex="-1"></a>For a low-threshold use case, I will discuss flagging items for a second review when missing a positive would be costly. For a high-threshold use case, I will discuss an alert that triggers a costly action, where false positives would be a bigger concern. I will connect these examples to the confusion matrices and explain why accuracy alone may not be enough to choose a threshold.</span>
+<span id="cb26-51"><a href="#cb26-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-52"><a href="#cb26-52" aria-hidden="true" tabindex="-1"></a><span class="fu">## Load and validate the data</span></span>
+<span id="cb26-53"><a href="#cb26-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-54"><a href="#cb26-54" aria-hidden="true" tabindex="-1"></a><span class="in">```{r setup, message=FALSE, warning=FALSE}</span></span>
+<span id="cb26-55"><a href="#cb26-55" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(readr)</span>
+<span id="cb26-56"><a href="#cb26-56" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(dplyr)</span>
+<span id="cb26-57"><a href="#cb26-57" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggplot2)</span>
+<span id="cb26-58"><a href="#cb26-58" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(knitr)</span>
+<span id="cb26-59"><a href="#cb26-59" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-60"><a href="#cb26-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-61"><a href="#cb26-61" aria-hidden="true" tabindex="-1"></a><span class="in">```{r load-data}</span></span>
+<span id="cb26-62"><a href="#cb26-62" aria-hidden="true" tabindex="-1"></a>penguins_pred <span class="ot">&lt;-</span> <span class="fu">read_csv</span>(</span>
+<span id="cb26-63"><a href="#cb26-63" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week02/2b/penguin_predictions.csv&quot;</span>,</span>
+<span id="cb26-64"><a href="#cb26-64" aria-hidden="true" tabindex="-1"></a>  <span class="at">show_col_types =</span> <span class="cn">FALSE</span></span>
+<span id="cb26-65"><a href="#cb26-65" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb26-66"><a href="#cb26-66" aria-hidden="true" tabindex="-1"></a><span class="fu">glimpse</span>(penguins_pred)</span>
+<span id="cb26-67"><a href="#cb26-67" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-68"><a href="#cb26-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-69"><a href="#cb26-69" aria-hidden="true" tabindex="-1"></a>Before doing anything else, I checked the data for missing values, confirmed <span class="in">`.pred_female`</span> is a valid probability (between 0 and 1), and confirmed the actual and predicted class columns only contain <span class="in">`&quot;female&quot;`</span> and <span class="in">`&quot;male&quot;`</span>.</span>
+<span id="cb26-70"><a href="#cb26-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-71"><a href="#cb26-71" aria-hidden="true" tabindex="-1"></a><span class="in">```{r validate}</span></span>
+<span id="cb26-72"><a href="#cb26-72" aria-hidden="true" tabindex="-1"></a><span class="co"># missing values</span></span>
+<span id="cb26-73"><a href="#cb26-73" aria-hidden="true" tabindex="-1"></a><span class="fu">colSums</span>(<span class="fu">is.na</span>(penguins_pred))</span>
+<span id="cb26-74"><a href="#cb26-74" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-75"><a href="#cb26-75" aria-hidden="true" tabindex="-1"></a><span class="co"># probability range check</span></span>
+<span id="cb26-76"><a href="#cb26-76" aria-hidden="true" tabindex="-1"></a><span class="fu">range</span>(penguins_pred<span class="sc">$</span>.pred_female)</span>
+<span id="cb26-77"><a href="#cb26-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-78"><a href="#cb26-78" aria-hidden="true" tabindex="-1"></a><span class="co"># class labels present</span></span>
+<span id="cb26-79"><a href="#cb26-79" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(penguins_pred<span class="sc">$</span>sex)</span>
+<span id="cb26-80"><a href="#cb26-80" aria-hidden="true" tabindex="-1"></a><span class="fu">unique</span>(penguins_pred<span class="sc">$</span>.pred_class)</span>
+<span id="cb26-81"><a href="#cb26-81" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-82"><a href="#cb26-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-83"><a href="#cb26-83" aria-hidden="true" tabindex="-1"></a>There are <span class="in">`r nrow(penguins_pred)`</span> complete rows with no missing values in <span class="in">`sex`</span> or <span class="in">`.pred_female`</span>, so all rows are used in every threshold comparison below. <span class="in">`.pred_female`</span> falls entirely within <span class="in">`[0, 1]`</span> as expected for a predicted probability.</span>
+<span id="cb26-84"><a href="#cb26-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-85"><a href="#cb26-85" aria-hidden="true" tabindex="-1"></a><span class="in">```{r sanity-check-0.5}</span></span>
+<span id="cb26-86"><a href="#cb26-86" aria-hidden="true" tabindex="-1"></a>derived_0<span class="fl">.5</span> <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(penguins_pred<span class="sc">$</span>.pred_female <span class="sc">&gt;=</span> <span class="fl">0.5</span>, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>)</span>
+<span id="cb26-87"><a href="#cb26-87" aria-hidden="true" tabindex="-1"></a><span class="fu">sum</span>(derived_0<span class="fl">.5</span> <span class="sc">!=</span> penguins_pred<span class="sc">$</span>.pred_class)</span>
+<span id="cb26-88"><a href="#cb26-88" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-89"><a href="#cb26-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-90"><a href="#cb26-90" aria-hidden="true" tabindex="-1"></a>As a sanity check, I also compared a class derived from <span class="in">`.pred_female &gt;= 0.5`</span> against the <span class="in">`.pred_class`</span> column already in the file: zero rows disagree, confirming <span class="in">`.pred_class`</span> was generated at the standard 0.5 cutoff and that this same threshold logic reproduces it correctly before applying it at 0.2 and 0.8.</span>
+<span id="cb26-91"><a href="#cb26-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-92"><a href="#cb26-92" aria-hidden="true" tabindex="-1"></a><span class="fu">## Class balance and the null error rate</span></span>
+<span id="cb26-93"><a href="#cb26-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-94"><a href="#cb26-94" aria-hidden="true" tabindex="-1"></a><span class="in">```{r class-balance}</span></span>
+<span id="cb26-95"><a href="#cb26-95" aria-hidden="true" tabindex="-1"></a>class_counts <span class="ot">&lt;-</span> penguins_pred <span class="sc">|&gt;</span></span>
+<span id="cb26-96"><a href="#cb26-96" aria-hidden="true" tabindex="-1"></a>  <span class="fu">count</span>(sex) <span class="sc">|&gt;</span></span>
+<span id="cb26-97"><a href="#cb26-97" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">proportion =</span> n <span class="sc">/</span> <span class="fu">sum</span>(n))</span>
+<span id="cb26-98"><a href="#cb26-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-99"><a href="#cb26-99" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(class_counts, <span class="at">digits =</span> <span class="dv">3</span>)</span>
+<span id="cb26-100"><a href="#cb26-100" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-101"><a href="#cb26-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-102"><a href="#cb26-102" aria-hidden="true" tabindex="-1"></a><span class="in">```{r class-balance-plot}</span></span>
+<span id="cb26-103"><a href="#cb26-103" aria-hidden="true" tabindex="-1"></a><span class="co">#| fig-alt: &quot;Bar chart showing the count of female and male penguins in the actual sex column&quot;</span></span>
+<span id="cb26-104"><a href="#cb26-104" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(penguins_pred, <span class="fu">aes</span>(<span class="at">x =</span> sex, <span class="at">fill =</span> sex)) <span class="sc">+</span></span>
+<span id="cb26-105"><a href="#cb26-105" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_bar</span>() <span class="sc">+</span></span>
+<span id="cb26-106"><a href="#cb26-106" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(</span>
+<span id="cb26-107"><a href="#cb26-107" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">&quot;Distribution of the Actual Class (sex)&quot;</span>,</span>
+<span id="cb26-108"><a href="#cb26-108" aria-hidden="true" tabindex="-1"></a>    <span class="at">x =</span> <span class="st">&quot;Actual sex&quot;</span>,</span>
+<span id="cb26-109"><a href="#cb26-109" aria-hidden="true" tabindex="-1"></a>    <span class="at">y =</span> <span class="st">&quot;Count&quot;</span></span>
+<span id="cb26-110"><a href="#cb26-110" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">+</span></span>
+<span id="cb26-111"><a href="#cb26-111" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_minimal</span>() <span class="sc">+</span></span>
+<span id="cb26-112"><a href="#cb26-112" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">&quot;none&quot;</span>)</span>
+<span id="cb26-113"><a href="#cb26-113" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-114"><a href="#cb26-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-115"><a href="#cb26-115" aria-hidden="true" tabindex="-1"></a><span class="in">```{r null-error}</span></span>
+<span id="cb26-116"><a href="#cb26-116" aria-hidden="true" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="fu">nrow</span>(penguins_pred)</span>
+<span id="cb26-117"><a href="#cb26-117" aria-hidden="true" tabindex="-1"></a>majority_class <span class="ot">&lt;-</span> class_counts<span class="sc">$</span>sex[<span class="fu">which.max</span>(class_counts<span class="sc">$</span>n)]</span>
+<span id="cb26-118"><a href="#cb26-118" aria-hidden="true" tabindex="-1"></a>majority_count <span class="ot">&lt;-</span> <span class="fu">max</span>(class_counts<span class="sc">$</span>n)</span>
+<span id="cb26-119"><a href="#cb26-119" aria-hidden="true" tabindex="-1"></a>null_error_rate <span class="ot">&lt;-</span> <span class="dv">1</span> <span class="sc">-</span> (majority_count <span class="sc">/</span> n)</span>
+<span id="cb26-120"><a href="#cb26-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-121"><a href="#cb26-121" aria-hidden="true" tabindex="-1"></a>null_error_rate</span>
+<span id="cb26-122"><a href="#cb26-122" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-123"><a href="#cb26-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-124"><a href="#cb26-124" aria-hidden="true" tabindex="-1"></a>The majority class is **`r majority_class`** (`r majority_count` of `r n` observations). Always predicting `r majority_class` would be wrong `r scales::percent(null_error_rate, accuracy = 0.1)` of the time, so the null error rate is **`r round(null_error_rate, 3)`** and the corresponding null accuracy is **`r round(1 - null_error_rate, 3)`**. Any threshold I evaluate below needs to beat that baseline to be worth using over just guessing the majority class.</span>
+<span id="cb26-125"><a href="#cb26-125" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-126"><a href="#cb26-126" aria-hidden="true" tabindex="-1"></a><span class="fu">## Threshold comparison</span></span>
+<span id="cb26-127"><a href="#cb26-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-128"><a href="#cb26-128" aria-hidden="true" tabindex="-1"></a>I derived new predicted classes directly from <span class="in">`.pred_female`</span> at thresholds of 0.2, 0.5, and 0.8, classifying an observation as <span class="in">`female`</span> when <span class="in">`.pred_female`</span> is greater than or equal to the threshold and <span class="in">`male`</span> otherwise, rather than reusing the provided <span class="in">`.pred_class`</span> column for every threshold.</span>
+<span id="cb26-129"><a href="#cb26-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-130"><a href="#cb26-130" aria-hidden="true" tabindex="-1"></a><span class="in">```{r metrics-function}</span></span>
+<span id="cb26-131"><a href="#cb26-131" aria-hidden="true" tabindex="-1"></a>confusion_and_metrics <span class="ot">&lt;-</span> <span class="cf">function</span>(data, threshold, <span class="at">positive =</span> <span class="st">&quot;female&quot;</span>) {</span>
+<span id="cb26-132"><a href="#cb26-132" aria-hidden="true" tabindex="-1"></a>  pred <span class="ot">&lt;-</span> <span class="fu">ifelse</span>(data<span class="sc">$</span>.pred_female <span class="sc">&gt;=</span> threshold, <span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>)</span>
+<span id="cb26-133"><a href="#cb26-133" aria-hidden="true" tabindex="-1"></a>  actual <span class="ot">&lt;-</span> data<span class="sc">$</span>sex</span>
+<span id="cb26-134"><a href="#cb26-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-135"><a href="#cb26-135" aria-hidden="true" tabindex="-1"></a>  TP <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred <span class="sc">==</span> <span class="st">&quot;female&quot;</span> <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;female&quot;</span>)</span>
+<span id="cb26-136"><a href="#cb26-136" aria-hidden="true" tabindex="-1"></a>  FP <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred <span class="sc">==</span> <span class="st">&quot;female&quot;</span> <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;male&quot;</span>)</span>
+<span id="cb26-137"><a href="#cb26-137" aria-hidden="true" tabindex="-1"></a>  TN <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred <span class="sc">==</span> <span class="st">&quot;male&quot;</span>   <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;male&quot;</span>)</span>
+<span id="cb26-138"><a href="#cb26-138" aria-hidden="true" tabindex="-1"></a>  FN <span class="ot">&lt;-</span> <span class="fu">sum</span>(pred <span class="sc">==</span> <span class="st">&quot;male&quot;</span>   <span class="sc">&amp;</span> actual <span class="sc">==</span> <span class="st">&quot;female&quot;</span>)</span>
+<span id="cb26-139"><a href="#cb26-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-140"><a href="#cb26-140" aria-hidden="true" tabindex="-1"></a>  accuracy  <span class="ot">&lt;-</span> (TP <span class="sc">+</span> TN) <span class="sc">/</span> (TP <span class="sc">+</span> TN <span class="sc">+</span> FP <span class="sc">+</span> FN)</span>
+<span id="cb26-141"><a href="#cb26-141" aria-hidden="true" tabindex="-1"></a>  precision <span class="ot">&lt;-</span> <span class="cf">if</span> ((TP <span class="sc">+</span> FP) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> TP <span class="sc">/</span> (TP <span class="sc">+</span> FP)</span>
+<span id="cb26-142"><a href="#cb26-142" aria-hidden="true" tabindex="-1"></a>  recall    <span class="ot">&lt;-</span> <span class="cf">if</span> ((TP <span class="sc">+</span> FN) <span class="sc">==</span> <span class="dv">0</span>) <span class="cn">NA_real_</span> <span class="cf">else</span> TP <span class="sc">/</span> (TP <span class="sc">+</span> FN)</span>
+<span id="cb26-143"><a href="#cb26-143" aria-hidden="true" tabindex="-1"></a>  f1        <span class="ot">&lt;-</span> <span class="cf">if</span> (<span class="fu">is.na</span>(precision) <span class="sc">||</span> <span class="fu">is.na</span>(recall) <span class="sc">||</span> (precision <span class="sc">+</span> recall) <span class="sc">==</span> <span class="dv">0</span>) {</span>
+<span id="cb26-144"><a href="#cb26-144" aria-hidden="true" tabindex="-1"></a>    <span class="cn">NA_real_</span></span>
+<span id="cb26-145"><a href="#cb26-145" aria-hidden="true" tabindex="-1"></a>  } <span class="cf">else</span> {</span>
+<span id="cb26-146"><a href="#cb26-146" aria-hidden="true" tabindex="-1"></a>    <span class="dv">2</span> <span class="sc">*</span> precision <span class="sc">*</span> recall <span class="sc">/</span> (precision <span class="sc">+</span> recall)</span>
+<span id="cb26-147"><a href="#cb26-147" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb26-148"><a href="#cb26-148" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-149"><a href="#cb26-149" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(</span>
+<span id="cb26-150"><a href="#cb26-150" aria-hidden="true" tabindex="-1"></a>    <span class="at">threshold =</span> threshold,</span>
+<span id="cb26-151"><a href="#cb26-151" aria-hidden="true" tabindex="-1"></a>    <span class="at">confusion =</span> <span class="fu">matrix</span>(<span class="fu">c</span>(TP, FP, FN, TN), <span class="at">nrow =</span> <span class="dv">2</span>, <span class="at">byrow =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb26-152"><a href="#cb26-152" aria-hidden="true" tabindex="-1"></a>                        <span class="at">dimnames =</span> <span class="fu">list</span>(<span class="st">&quot;Predicted&quot;</span> <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>),</span>
+<span id="cb26-153"><a href="#cb26-153" aria-hidden="true" tabindex="-1"></a>                                        <span class="st">&quot;Actual&quot;</span>    <span class="ot">=</span> <span class="fu">c</span>(<span class="st">&quot;female&quot;</span>, <span class="st">&quot;male&quot;</span>))),</span>
+<span id="cb26-154"><a href="#cb26-154" aria-hidden="true" tabindex="-1"></a>    <span class="at">TP =</span> TP, <span class="at">FP =</span> FP, <span class="at">TN =</span> TN, <span class="at">FN =</span> FN,</span>
+<span id="cb26-155"><a href="#cb26-155" aria-hidden="true" tabindex="-1"></a>    <span class="at">accuracy =</span> accuracy, <span class="at">precision =</span> precision, <span class="at">recall =</span> recall, <span class="at">f1 =</span> f1</span>
+<span id="cb26-156"><a href="#cb26-156" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb26-157"><a href="#cb26-157" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb26-158"><a href="#cb26-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-159"><a href="#cb26-159" aria-hidden="true" tabindex="-1"></a>thresholds <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.2</span>, <span class="fl">0.5</span>, <span class="fl">0.8</span>)</span>
+<span id="cb26-160"><a href="#cb26-160" aria-hidden="true" tabindex="-1"></a>results <span class="ot">&lt;-</span> <span class="fu">lapply</span>(thresholds, confusion_and_metrics, <span class="at">data =</span> penguins_pred)</span>
+<span id="cb26-161"><a href="#cb26-161" aria-hidden="true" tabindex="-1"></a><span class="fu">names</span>(results) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;t_&quot;</span>, thresholds)</span>
+<span id="cb26-162"><a href="#cb26-162" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-163"><a href="#cb26-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-164"><a href="#cb26-164" aria-hidden="true" tabindex="-1"></a><span class="fu">### Threshold = 0.2</span></span>
+<span id="cb26-165"><a href="#cb26-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-166"><a href="#cb26-166" aria-hidden="true" tabindex="-1"></a><span class="in">```{r cm-02}</span></span>
+<span id="cb26-167"><a href="#cb26-167" aria-hidden="true" tabindex="-1"></a>results<span class="sc">$</span>t_0<span class="fl">.2</span><span class="sc">$</span>confusion</span>
+<span id="cb26-168"><a href="#cb26-168" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-169"><a href="#cb26-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-170"><a href="#cb26-170" aria-hidden="true" tabindex="-1"></a><span class="fu">### Threshold = 0.5</span></span>
+<span id="cb26-171"><a href="#cb26-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-172"><a href="#cb26-172" aria-hidden="true" tabindex="-1"></a><span class="in">```{r cm-05}</span></span>
+<span id="cb26-173"><a href="#cb26-173" aria-hidden="true" tabindex="-1"></a>results<span class="sc">$</span>t_0<span class="fl">.5</span><span class="sc">$</span>confusion</span>
+<span id="cb26-174"><a href="#cb26-174" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-175"><a href="#cb26-175" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-176"><a href="#cb26-176" aria-hidden="true" tabindex="-1"></a><span class="fu">### Threshold = 0.8</span></span>
+<span id="cb26-177"><a href="#cb26-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-178"><a href="#cb26-178" aria-hidden="true" tabindex="-1"></a><span class="in">```{r cm-08}</span></span>
+<span id="cb26-179"><a href="#cb26-179" aria-hidden="true" tabindex="-1"></a>results<span class="sc">$</span>t_0<span class="fl">.8</span><span class="sc">$</span>confusion</span>
+<span id="cb26-180"><a href="#cb26-180" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-181"><a href="#cb26-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-182"><a href="#cb26-182" aria-hidden="true" tabindex="-1"></a><span class="fu">## Results</span></span>
+<span id="cb26-183"><a href="#cb26-183" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-184"><a href="#cb26-184" aria-hidden="true" tabindex="-1"></a><span class="in">```{r results-table}</span></span>
+<span id="cb26-185"><a href="#cb26-185" aria-hidden="true" tabindex="-1"></a>metrics_table <span class="ot">&lt;-</span> <span class="fu">tibble</span>(</span>
+<span id="cb26-186"><a href="#cb26-186" aria-hidden="true" tabindex="-1"></a>  <span class="at">Threshold =</span> thresholds,</span>
+<span id="cb26-187"><a href="#cb26-187" aria-hidden="true" tabindex="-1"></a>  <span class="at">TP =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>TP),</span>
+<span id="cb26-188"><a href="#cb26-188" aria-hidden="true" tabindex="-1"></a>  <span class="at">FP =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>FP),</span>
+<span id="cb26-189"><a href="#cb26-189" aria-hidden="true" tabindex="-1"></a>  <span class="at">TN =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>TN),</span>
+<span id="cb26-190"><a href="#cb26-190" aria-hidden="true" tabindex="-1"></a>  <span class="at">FN =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>FN),</span>
+<span id="cb26-191"><a href="#cb26-191" aria-hidden="true" tabindex="-1"></a>  <span class="at">Accuracy  =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>accuracy),</span>
+<span id="cb26-192"><a href="#cb26-192" aria-hidden="true" tabindex="-1"></a>  <span class="at">Precision =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>precision),</span>
+<span id="cb26-193"><a href="#cb26-193" aria-hidden="true" tabindex="-1"></a>  <span class="at">Recall    =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>recall),</span>
+<span id="cb26-194"><a href="#cb26-194" aria-hidden="true" tabindex="-1"></a>  <span class="at">F1        =</span> <span class="fu">sapply</span>(results, <span class="cf">function</span>(r) r<span class="sc">$</span>f1)</span>
+<span id="cb26-195"><a href="#cb26-195" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb26-196"><a href="#cb26-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-197"><a href="#cb26-197" aria-hidden="true" tabindex="-1"></a><span class="fu">kable</span>(metrics_table, <span class="at">digits =</span> <span class="dv">3</span>)</span>
+<span id="cb26-198"><a href="#cb26-198" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb26-199"><a href="#cb26-199" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-200"><a href="#cb26-200" aria-hidden="true" tabindex="-1"></a>For reference, the null accuracy from always predicting the majority class (<span class="in">`r majority_class`</span>) was <span class="in">`r round(1 - null_error_rate, 3)`</span>. All three thresholds clear that baseline comfortably.</span>
+<span id="cb26-201"><a href="#cb26-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-202"><a href="#cb26-202" aria-hidden="true" tabindex="-1"></a><span class="fu">## Discussion</span></span>
+<span id="cb26-203"><a href="#cb26-203" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-204"><a href="#cb26-204" aria-hidden="true" tabindex="-1"></a>Raising the threshold from 0.2 to 0.8 steadily reduced false positives (6 -&gt; 3 -&gt; 2) at the cost of missing one additional true positive (37 -&gt; 36 -&gt; 36 true positives, 2 -&gt; 3 -&gt; 3 false negatives), which is exactly the precision/recall tradeoff I expected going in. Accuracy and F1 both nudge upward as the threshold increases in this particular dataset, but that is a property of this data, not a general rule -- precision rose (0.860 -&gt; 0.923 -&gt; 0.947) while recall slightly fell (0.949 -&gt; 0.923 -&gt; 0.923), so the &quot;best&quot; threshold really depends on which error type is more costly, not on which threshold produces the highest accuracy.</span>
+<span id="cb26-205"><a href="#cb26-205" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-206"><a href="#cb26-206" aria-hidden="true" tabindex="-1"></a>**Low threshold (0.2) -- flagging for review:** a low threshold is preferable when missing an actual positive is expensive and a false positive is cheap to catch later. For example, a content-moderation model flagging posts for possible policy violations: setting the threshold low means more posts get sent for human review (more false positives), but far fewer genuine violations slip through unflagged (fewer false negatives). The cost of a reviewer clearing an innocent post is small compared to the cost of missing a real violation.</span>
+<span id="cb26-207"><a href="#cb26-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-208"><a href="#cb26-208" aria-hidden="true" tabindex="-1"></a>**High threshold (0.8) -- triggering a costly, hard-to-reverse action:** a high threshold is preferable when a false positive triggers something expensive, embarrassing, or hard to undo, and it is acceptable to miss some true positives to avoid that. For example, a fraud-detection model that automatically freezes a customer&#39;s account: freezing a legitimate customer&#39;s account (a false positive) causes real harm and support cost, so the model should only act when it is very confident, even if that means a few actual fraud cases initially slip through and get caught by other means.</span>
+<span id="cb26-209"><a href="#cb26-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-210"><a href="#cb26-210" aria-hidden="true" tabindex="-1"></a>These examples map directly onto the confusion matrices above: the 0.2 threshold is the &quot;cast a wide net&quot; setting (lower FN, higher FP), and the 0.8 threshold is the &quot;only act when confident&quot; setting (lower FP, slightly higher FN). Accuracy alone would not have surfaced this tradeoff, since all three thresholds scored within about three points of each other on accuracy despite meaningfully different confusion matrices.</span>
+<span id="cb26-211"><a href="#cb26-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-212"><a href="#cb26-212" aria-hidden="true" tabindex="-1"></a><span class="fu">## Conclusions</span></span>
+<span id="cb26-213"><a href="#cb26-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-214"><a href="#cb26-214" aria-hidden="true" tabindex="-1"></a>All three thresholds substantially outperform the null error rate baseline, confirming the model has real predictive value beyond guessing the majority class. There is no single &quot;correct&quot; threshold in the abstract -- 0.2 favors catching more true positives at the expense of more false alarms, while 0.8 favors precision and minimizes false alarms at the expense of a few more missed positives. Choosing between them is a business decision about which error type is more costly in the specific application, not a modeling decision.</span>
+<span id="cb26-215"><a href="#cb26-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-216"><a href="#cb26-216" aria-hidden="true" tabindex="-1"></a>To extend or verify this work, I&#39;d want to: (1) evaluate the model on a held-out or resampled set rather than the same 93 rows used to pick a threshold, since threshold selection on the evaluation set risks overfitting the cutoff to this particular sample; (2) plot a full ROC or precision-recall curve across all thresholds, not just 0.2/0.5/0.8, to see whether these three points represent the full range of tradeoffs available; and (3) check the model&#39;s calibration (e.g., a reliability plot of predicted probability vs. observed frequency) to confirm the model&#39;s confident predictions are genuinely well-calibrated rather than overconfident.</span>
+<span id="cb26-217"><a href="#cb26-217" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-218"><a href="#cb26-218" aria-hidden="true" tabindex="-1"></a><span class="fu">## AI disclosure and citation</span></span>
+<span id="cb26-219"><a href="#cb26-219" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-220"><a href="#cb26-220" aria-hidden="true" tabindex="-1"></a>I used OpenAI&#39;s ChatGPT to help organize the analysis plan and draft the &quot;Approach,&quot; &quot;Check the data and baseline,&quot; &quot;Compare thresholds,&quot; and &quot;What I will discuss&quot; sections of this document from the assignment instructions. Those sections describe planned work rather than completed results.</span>
+<span id="cb26-221"><a href="#cb26-221" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-222"><a href="#cb26-222" aria-hidden="true" tabindex="-1"></a>I used Claude (Anthropic, Sonnet 5, accessed via Claude for Cowork) to draft the executed R analysis: loading and validating the data, the class-balance summary and bar chart, the <span class="in">`confusion_and_metrics()`</span> function, the confusion matrices, the results table, and the concrete low- vs. high-threshold examples in the Discussion section.</span>
+<span id="cb26-223"><a href="#cb26-223" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-224"><a href="#cb26-224" aria-hidden="true" tabindex="-1"></a>I used Claude Code (Anthropic, Sonnet 5, this CLI harness) to merge that executed analysis into this single continuous document alongside the original ChatGPT-drafted planning sections (per the assignment&#39;s requirement to continue in the same file as the Approach deliverable), independently re-verify the null error rate, confusion matrix counts, and accuracy/precision/recall/F1 at all three thresholds against the raw CSV before merging, and fix two issues found while reviewing the code: the confusion-matrix cells originally had false positives and false negatives swapped due to a <span class="in">`matrix()`</span> fill-order bug, and the CSV was being loaded from a local file path rather than a URL, which the course syllabus requires for reproducibility in the instructor&#39;s environment. Claude Code then rendered this merged document end-to-end against the live raw GitHub URL to confirm it knits without errors and that every number matches the independently verified values.</span>
+<span id="cb26-225"><a href="#cb26-225" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-226"><a href="#cb26-226" aria-hidden="true" tabindex="-1"></a>AI citations:</span>
+<span id="cb26-227"><a href="#cb26-227" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-228"><a href="#cb26-228" aria-hidden="true" tabindex="-1"></a>OpenAI. (2026). *ChatGPT (GPT-5.6 Sol)* <span class="sc">\[</span>Large language model<span class="sc">\]</span>. Accessed September 10, 2026. <span class="ot">&lt;https://chatgpt.com/&gt;</span>.</span>
+<span id="cb26-229"><a href="#cb26-229" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-230"><a href="#cb26-230" aria-hidden="true" tabindex="-1"></a>Anthropic. (2026). *Claude (Sonnet 5)* <span class="sc">\[</span>Large language model<span class="sc">\]</span>. Accessed September 14, 2026. <span class="ot">&lt;https://claude.ai/&gt;</span>.</span>
+<span id="cb26-231"><a href="#cb26-231" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-232"><a href="#cb26-232" aria-hidden="true" tabindex="-1"></a>Anthropic. (2026). *Claude Code (Sonnet 5)* <span class="sc">\[</span>Computer software<span class="sc">\]</span>. <span class="ot">&lt;https://claude.com/product/claude-code&gt;</span>. Accessed September 14, 2026.</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal><i class="bi"></i></button></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
 

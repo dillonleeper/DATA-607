@@ -4,6 +4,7 @@
 .Ruserdata
 .Rproj.user/
 .Renviron
+rsconnect/
 
 # Quarto
 /.quarto/
