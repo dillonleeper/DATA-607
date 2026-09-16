@@ -1,0 +1,153 @@
+---
+title: "Assignment 3A: Global Baseline Estimate — Approach"
+subtitle: "DATA 607 · Week 3"
+author: "Dillon Leeper"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-tools: true
+    df-print: paged
+    smooth-scroll: true
+    embed-resources: true
+    css: styles.css
+
+execute:
+  warning: false
+  message: false
+
+editor: visual
+---
+
+## Overview
+
+Most recommender systems rely on personalized algorithms such as content-based filtering or item-item collaborative filtering. The **Global Baseline Estimate** is a useful, simpler alternative: a non-personalized recommender that predicts a rating using only the overall rating distribution, how a given item tends to be rated relative to everyone else, and how a given user tends to rate relative to everyone else. It serves as a benchmark that any personalized algorithm should be expected to beat.
+
+This document lays out the approach for implementing a Global Baseline Estimate recommender in R using the movie ratings survey data, following the algorithm outlined in the provided spreadsheet.
+
+## The Algorithm
+
+For a user $u$ and item (movie) $i$, the baseline prediction is:
+
+$$
+\text{baseline}(u, i) = \mu + b_u + b_i
+$$
+
+where:
+
+-   $\mu$ — the global mean rating across all users and all movies
+-   $b_i$ — the item bias: how much movie $i$'s average rating deviates from $\mu$
+-   $b_u$ — the user bias: how much user $u$'s ratings deviate from $\mu$, after accounting for the items they rated
+
+The result is typically clipped to the valid rating scale, since $\mu + b_u + b_i$ can fall outside the original bounds.
+
+## Planned Approach
+
+### 1. Data Preparation
+
+Import the survey data and reshape it from wide format (one row per respondent, one column per movie) into long/tidy format with `tidyr::pivot_longer()`, so each row represents a single (user, movie, rating) observation. Missing/unrated cells will be filtered out rather than treated as zero ratings.
+
+### 2. Compute the Global Mean
+
+Calculate $\mu$ as the mean of every recorded rating in the long-format data frame, ignoring missing values.
+
+### 3. Compute Item (Movie) Bias
+
+For each movie, compute:
+
+$$
+b_i = \overline{\text{rating}_i} - \mu
+$$
+
+grouping by movie and averaging its ratings, then subtracting the global mean.
+
+### 4. Compute User Bias
+
+For each user, correct for item bias before averaging: subtract both $\mu$ and the relevant movie's $b_i$ from each of that user's ratings, then average the residuals:
+
+$$
+b_u = \text{mean}(\text{rating}_{u,i} - \mu - b_i)
+$$
+
+### 5. Compute Baseline Predictions
+
+Combine $\mu$, $b_u$, and $b_i$ for every (user, movie) pair — including pairs the user has not yet rated — to produce a predicted rating, clipped to the valid scale (e.g., 1–5).
+
+### 6. Generate Recommendations
+
+For each user, rank the movies they have not yet rated by predicted baseline score and surface the top-ranked titles as recommendations.
+
+## R Implementation Plan
+
+The implementation will rely entirely on base R and `dplyr` — no modeling packages are needed, since the point of a baseline estimate is to be a simple, interpretable benchmark.
+
+```{r}
+#| label: setup
+#| eval: false
+
+library(tidyverse)
+library(readxl)
+
+ratings_wide <- read_excel("MovieRatings.xlsx")
+```
+
+```{r}
+#| label: reshape-long
+#| eval: false
+
+ratings_long <- ratings_wide |>
+  pivot_longer(
+    cols = -user,
+    names_to = "movie",
+    values_to = "rating"
+  ) |>
+  filter(!is.na(rating))
+```
+
+```{r}
+#| label: global-mean
+#| eval: false
+
+mu <- mean(ratings_long$rating, na.rm = TRUE)
+```
+
+```{r}
+#| label: item-bias
+#| eval: false
+
+item_bias <- ratings_long |>
+  group_by(movie) |>
+  summarize(b_i = mean(rating, na.rm = TRUE) - mu)
+```
+
+```{r}
+#| label: user-bias
+#| eval: false
+
+user_bias <- ratings_long |>
+  left_join(item_bias, by = "movie") |>
+  group_by(user) |>
+  summarize(b_u = mean(rating - mu - b_i, na.rm = TRUE))
+```
+
+```{r}
+#| label: baseline-predictions
+#| eval: false
+
+baseline_predictions <- expand_grid(
+  user = unique(ratings_long$user),
+  movie = unique(ratings_long$movie)
+) |>
+  left_join(user_bias, by = "user") |>
+  left_join(item_bias, by = "movie") |>
+  mutate(
+    predicted_rating = mu + b_u + b_i,
+    predicted_rating = pmin(pmax(predicted_rating, 1), 5)
+  )
+```
+
+## Next Steps
+
+The Code Base deliverable (due Sunday) will implement the steps above against the actual survey data, validate predictions against a held-out set of known ratings, and produce a ranked recommendation list per respondent. The Video Explainer (due Monday) will walk through the resulting code and findings.

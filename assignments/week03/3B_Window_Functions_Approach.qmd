@@ -1,0 +1,134 @@
+---
+title: "Assignment 3B: Window Functions — Approach"
+subtitle: "DATA 607 · Week 3"
+author: "Dillon Leeper"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-tools: true
+    df-print: paged
+    smooth-scroll: true
+    embed-resources: true
+    css: styles.css
+
+execute:
+  warning: false
+  message: false
+
+editor: visual
+---
+
+## Overview
+
+This assignment calls for a dataset containing time series for two or more separate items, and the use of window functions (in SQL or `dplyr`) to calculate a year-to-date (YTD) average and a six-day moving average for each item. This document outlines the planned dataset and the window-function approach in both `dplyr` and SQL.
+
+## Dataset
+
+Daily closing prices for two to three tickers since January 1, 2022, pulled via `tidyquant::tq_get()` or `quantmod::getSymbols()`, both of which source free daily data from Yahoo Finance and support multiple symbols and a date range in a single call. This naturally satisfies the "two or more separate items" requirement, with each ticker forming its own time series. A synthetic, LLM-generated dataset is a fallback if API access is unreliable.
+
+The working shape after retrieval will be a long data frame with columns `date`, `ticker`, and `close`.
+
+## Planned Approach
+
+### Year-to-Date Average
+
+Group by ticker and calendar year, order by date within each group, and take a running (cumulative) mean that resets at the start of each January. This is a running window that grows one row at a time from the first trading day of the year through the current row.
+
+### Six-Day Moving Average
+
+Group by ticker only (not by year, since the window should roll across year boundaries), order by date, and take a trailing average over the current row plus the five prior rows — a fixed-width window that slides forward one row at a time.
+
+## R Implementation Plan
+
+```{r}
+#| label: setup
+#| eval: false
+
+library(tidyverse)
+library(tidyquant)
+library(slider)
+
+tickers <- c("AAPL", "MSFT", "BTC-USD")
+
+prices <- tq_get(
+  tickers,
+  from = "2022-01-01",
+  get  = "stock.prices"
+) |>
+  transmute(ticker = symbol, date, close)
+```
+
+```{r}
+#| label: ytd-average
+#| eval: false
+
+prices_ytd <- prices |>
+  group_by(ticker, year = year(date)) |>
+  arrange(date, .by_group = TRUE) |>
+  mutate(ytd_avg = cummean(close)) |>
+  ungroup()
+```
+
+```{r}
+#| label: six-day-moving-average
+#| eval: false
+
+prices_ma <- prices_ytd |>
+  group_by(ticker) |>
+  arrange(date, .by_group = TRUE) |>
+  mutate(
+    ma6 = slide_dbl(close, mean, .before = 5, .complete = TRUE)
+  ) |>
+  ungroup()
+```
+
+An equivalent approach using `zoo::rollmean()` in place of `slider::slide_dbl()`:
+
+```{r}
+#| label: six-day-moving-average-zoo-alt
+#| eval: false
+
+library(zoo)
+
+prices_ma_alt <- prices_ytd |>
+  group_by(ticker) |>
+  arrange(date, .by_group = TRUE) |>
+  mutate(
+    ma6 = rollmean(close, k = 6, align = "right", fill = NA)
+  ) |>
+  ungroup()
+```
+
+## SQL Equivalent
+
+If implemented in SQL instead of (or alongside) `dplyr`, the same two calculations map to standard window function syntax:
+
+```sql
+SELECT
+  ticker,
+  date,
+  close,
+  AVG(close) OVER (
+    PARTITION BY ticker, EXTRACT(YEAR FROM date)
+    ORDER BY date
+    ROWS UNBOUNDED PRECEDING
+  ) AS ytd_avg,
+  AVG(close) OVER (
+    PARTITION BY ticker
+    ORDER BY date
+    ROWS BETWEEN 5 PRECEDING AND CURRENT ROW
+  ) AS ma_6day
+FROM prices
+ORDER BY ticker, date;
+```
+
+## Team Note
+
+This assignment allows working in a small team; this submission will note whether the work was completed solo or with collaborators once that's finalized.
+
+## Next Steps
+
+The Code Base deliverable (due Sunday) will execute the plan above against the retrieved price data, validate the YTD and moving-average calculations against a few hand-checked rows, and visualize both series per ticker. The Video Explainer (due Monday) will walk through the resulting code and output.
