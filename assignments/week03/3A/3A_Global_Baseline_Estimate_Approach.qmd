@@ -37,9 +37,9 @@ $$
 
 where:
 
--   $\mu$ — the global mean rating across all users and all movies
--   $b_i$ — the item bias: how much movie $i$'s average rating deviates from $\mu$
--   $b_u$ — the user bias: how much user $u$'s ratings deviate from $\mu$, after accounting for the items they rated
+- $\mu$ — the global mean rating across all users and all movies
+- $b_i$ — the item bias: how much movie $i$'s average rating deviates from $\mu$
+- $b_u$ — the user bias: how much user $u$'s ratings deviate from $\mu$, after accounting for the items they rated
 
 The result is typically clipped to the valid rating scale, since $\mu + b_u + b_i$ can fall outside the original bounds.
 

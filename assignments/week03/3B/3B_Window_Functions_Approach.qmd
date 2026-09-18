@@ -106,7 +106,7 @@ prices_ma_alt <- prices_ytd |>
 
 If implemented in SQL instead of (or alongside) `dplyr`, the same two calculations map to standard window function syntax:
 
-```sql
+``` sql
 SELECT
   ticker,
   date,
@@ -124,11 +124,3 @@ SELECT
 FROM prices
 ORDER BY ticker, date;
 ```
-
-## Team Note
-
-This assignment allows working in a small team; this submission will note whether the work was completed solo or with collaborators once that's finalized.
-
-## Next Steps
-
-The Code Base deliverable (due Sunday) will execute the plan above against the retrieved price data, validate the YTD and moving-average calculations against a few hand-checked rows, and visualize both series per ticker. The Video Explainer (due Monday) will walk through the resulting code and output.

@@ -1,3 +1,142 @@
-/* Minimal placeholder stylesheet referenced by the qmd YAML.
-   Replace with your course/project stylesheet if you have one;
-   an empty file is enough for `quarto render` to succeed. */
+/* ============================================================
+   DATA 607 — custom styling layered on top of the "cosmo" theme
+   Applies to the rendered HTML (baked in via embed-resources: true),
+   so keep it clean and professional — this is a graded submission.
+   ============================================================ */
+
+:root {
+  --accent: #2c5f8a;
+  --accent-dark: #1f4463;
+  --accent-light: #eaf2f8;
+  --text: #262b33;
+  --muted: #6b7280;
+  --code-bg: #f6f8fa;
+  --border: #dde4ea;
+}
+
+body {
+  color: var(--text);
+  line-height: 1.65;
+}
+
+/* Title block */
+#title-block-header .title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--accent-dark);
+  border-bottom: 3px solid var(--accent);
+  padding-bottom: 0.5rem;
+  display: inline-block;
+}
+
+#title-block-header .subtitle {
+  color: var(--accent);
+  font-weight: 500;
+  margin-top: 0.4rem;
+}
+
+#title-block-header .author,
+#title-block-header .date {
+  color: var(--muted);
+}
+
+/* Headings */
+h1, h2 {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.35rem;
+  margin-top: 2.2rem;
+}
+
+h2 { color: var(--accent-dark); }
+h3 { color: #3d434c; margin-top: 1.6rem; }
+
+/* Links */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+a:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* Code */
+pre, div.sourceCode {
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background-color: var(--code-bg) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+code {
+  color: #a4351f;
+  background-color: var(--accent-light);
+  padding: 0.12em 0.35em;
+  border-radius: 4px;
+  font-size: 0.92em;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+  font-size: 0.9em;
+}
+
+/* Blockquotes */
+blockquote {
+  border-left: 4px solid var(--accent);
+  background: var(--accent-light);
+  padding: 0.7rem 1.1rem;
+  border-radius: 0 8px 8px 0;
+  color: var(--text);
+}
+
+/* Tables */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.2rem 0;
+}
+th {
+  background-color: var(--accent);
+  color: #ffffff;
+  text-align: left;
+  padding: 0.55rem 0.85rem;
+}
+td {
+  padding: 0.5rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+tbody tr:nth-child(even) td {
+  background-color: #fafbfc;
+}
+
+/* Table of contents */
+#TOC {
+  background: var(--accent-light);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1rem 1.2rem;
+}
+#TOC a {
+  color: var(--text);
+}
+#TOC a:hover,
+#TOC a.active {
+  color: var(--accent-dark);
+  font-weight: 600;
+}
+
+/* Horizontal rules */
+hr {
+  border: none;
+  border-top: 2px solid var(--border);
+  margin: 2.2rem 0;
+}
+
+/* Math display shouldn't clip on narrow viewports */
+.katex-display, .math.display {
+  overflow-x: auto;
+}
