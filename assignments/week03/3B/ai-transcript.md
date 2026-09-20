@@ -58,9 +58,6 @@ Asked Claude to update the GitHub repository directly with the finished files.
 
 Connected to the student's linked computer via the desktop bridge, located the local clone of `DATA-607`, found and cleared several stale git lock files (`index.lock`, `HEAD.lock`, `refs/heads/main.lock`, all left over from an earlier crashed process), fast-forwarded the local branch to match `origin/main`, and committed only the two modified Week 3B files (`3B_Window_Functions_Approach.qmd` and its rendered `.html`) — deliberately leaving untouched a large set of unrelated pending changes already present in the working tree (other weeks' assignments, deleted assets, video files). Could not push the commit directly, since the sandboxed shell had no GitHub credentials cached; provided the `git push` command for the student to run from a terminal, GitHub Desktop, or VS Code where credentials were already available.
 
-## Team note
-
-[State here whether this assignment was completed solo or with collaborators, and confirm the "Team Note" section in 3B_Window_Functions_Approach.qmd matches before submitting.]
 
 ## AI citation
 
