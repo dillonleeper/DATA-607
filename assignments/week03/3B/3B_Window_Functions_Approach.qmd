@@ -1,5 +1,5 @@
 ---
-title: "Assignment 3B: Window Functions — Approach"
+title: "Assignment 3B: Window Functions — Approach & Code Base"
 subtitle: "DATA 607 · Week 3"
 author: "Dillon Leeper"
 format:
@@ -13,7 +13,7 @@ format:
     smooth-scroll: true
     embed-resources: true
     css: styles.css
-
+    
 execute:
   warning: false
   message: false
@@ -41,65 +41,138 @@ Group by ticker and calendar year, order by date within each group, and take a r
 
 Group by ticker only (not by year, since the window should roll across year boundaries), order by date, and take a trailing average over the current row plus the five prior rows — a fixed-width window that slides forward one row at a time.
 
-## R Implementation Plan
+## R Implementation
 
 ```{r}
 #| label: setup
-#| eval: false
 
 library(tidyverse)
-library(tidyquant)
-library(slider)
+library(lubridate)
+```
 
-tickers <- c("AAPL", "MSFT", "BTC-USD")
+To keep this reproducible with no internet dependency (and no risk of a Yahoo Finance API hiccup on submission day), the dataset below is a seeded synthetic daily-price series for three tickers since January 1, 2022 — same shape as real data (`ticker`, `date`, `close`), so everything downstream is unaffected. Real data can be substituted with one line — see the commented-out `tidyquant` call.
 
-prices <- tq_get(
-  tickers,
-  from = "2022-01-01",
-  get  = "stock.prices"
-) |>
-  transmute(ticker = symbol, date, close)
+```{r}
+#| label: build-dataset
+
+set.seed(607)
+
+tickers <- c("ALPHA", "BETA", "GAMMA")
+
+trading_dates <- seq(as.Date("2022-01-01"), Sys.Date(), by = "day")
+trading_dates <- trading_dates[!weekdays(trading_dates) %in% c("Saturday", "Sunday")]
+
+simulate_prices <- function(ticker, start_price, dates, vol) {
+  n <- length(dates)
+  daily_returns <- rnorm(n, mean = 0.0003, sd = vol)
+  close <- start_price * cumprod(1 + daily_returns)
+  tibble(ticker = ticker, date = dates, close = round(close, 2))
+}
+
+prices <- bind_rows(
+  simulate_prices("ALPHA", 100, trading_dates, 0.015),
+  simulate_prices("BETA",  50,  trading_dates, 0.020),
+  simulate_prices("GAMMA", 200, trading_dates, 0.012)
+)
+
+# To use real market data instead, comment out the block above and uncomment:
+# library(tidyquant)
+# prices <- tq_get(c("AAPL", "MSFT", "BTC-USD"), from = "2022-01-01", get = "stock.prices") |>
+#   transmute(ticker = symbol, date, close)
+
+glimpse(prices)
 ```
 
 ```{r}
 #| label: ytd-average
-#| eval: false
 
 prices_ytd <- prices |>
-  group_by(ticker, year = year(date)) |>
+  group_by(ticker, yr = year(date)) |>
   arrange(date, .by_group = TRUE) |>
   mutate(ytd_avg = cummean(close)) |>
   ungroup()
 ```
 
+Six-day moving average, using base R's `stats::filter()` so no extra packages (`slider`, `zoo`) are required:
+
 ```{r}
 #| label: six-day-moving-average
-#| eval: false
 
 prices_ma <- prices_ytd |>
   group_by(ticker) |>
   arrange(date, .by_group = TRUE) |>
-  mutate(
-    ma6 = slide_dbl(close, mean, .before = 5, .complete = TRUE)
-  ) |>
+  mutate(ma6 = as.numeric(stats::filter(close, rep(1 / 6, 6), sides = 1))) |>
+  ungroup() |>
+  select(-yr)
+```
+
+Equivalent alternatives, for reference (not evaluated here to avoid adding package dependencies):
+
+```{r}
+#| label: six-day-moving-average-alts
+#| eval: false
+
+# slider::slide_dbl(close, mean, .before = 5, .complete = TRUE)
+# zoo::rollmean(close, k = 6, align = "right", fill = NA)
+```
+
+### Result Sample
+
+```{r}
+#| label: sample-output
+
+prices_ma |>
+  group_by(ticker) |>
+  slice_head(n = 10) |>
   ungroup()
 ```
 
-An equivalent approach using `zoo::rollmean()` in place of `slider::slide_dbl()`:
+### Validation
+
+Spot-check the six-day moving average against a manual calculation, and confirm the YTD average resets at each year boundary.
 
 ```{r}
-#| label: six-day-moving-average-zoo-alt
-#| eval: false
+#| label: validate-ma6
 
-library(zoo)
+check <- prices_ma |> filter(ticker == "ALPHA") |> slice(1:10)
 
-prices_ma_alt <- prices_ytd |>
-  group_by(ticker) |>
-  arrange(date, .by_group = TRUE) |>
-  mutate(
-    ma6 = rollmean(close, k = 6, align = "right", fill = NA)
-  ) |>
-  ungroup()
+manual_ma6 <- mean(check$close[5:10])
+computed_ma6 <- check$ma6[10]
+
+tibble(manual_ma6, computed_ma6, match = isTRUE(all.equal(manual_ma6, computed_ma6)))
+```
+
+```{r}
+#| label: validate-ytd-reset
+
+prices_ma |>
+  filter(ticker == "ALPHA") |>
+  group_by(yr = year(date)) |>
+  slice_head(n = 1) |>
+  ungroup() |>
+  select(ticker, date, close, ytd_avg)
+```
+
+### Visualization
+
+```{r}
+#| label: fig-price-series
+#| fig-width: 9
+#| fig-height: 6
+
+prices_ma |>
+  filter(year(date) == year(Sys.Date())) |>
+  ggplot(aes(x = date)) +
+  geom_line(aes(y = close), alpha = 0.35) +
+  geom_line(aes(y = ytd_avg), linewidth = 0.8) +
+  geom_line(aes(y = ma6), linewidth = 0.8, linetype = "dashed") +
+  facet_wrap(~ticker, scales = "free_y") +
+  labs(
+    title = "Close Price with YTD Average and 6-Day Moving Average",
+    subtitle = "Solid = YTD average · Dashed = 6-day moving average · Faint = daily close",
+    x = NULL, y = "Price"
+  ) +
+  theme_minimal()
 ```
 
 ## SQL Equivalent
