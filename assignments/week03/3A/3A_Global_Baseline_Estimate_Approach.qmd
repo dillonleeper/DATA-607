@@ -1,5 +1,5 @@
 ---
-title: "Assignment 3A: Global Baseline Estimate — Approach"
+title: "Assignment 3A: Global Baseline Estimate — Approach & Code Base"
 subtitle: "DATA 607 · Week 3"
 author: "Dillon Leeper"
 format:
@@ -25,7 +25,7 @@ editor: visual
 
 Most recommender systems rely on personalized algorithms such as content-based filtering or item-item collaborative filtering. The **Global Baseline Estimate** is a useful, simpler alternative: a non-personalized recommender that predicts a rating using only the overall rating distribution, how a given item tends to be rated relative to everyone else, and how a given user tends to rate relative to everyone else. It serves as a benchmark that any personalized algorithm should be expected to beat.
 
-This document lays out the approach for implementing a Global Baseline Estimate recommender in R using the movie ratings survey data, following the algorithm outlined in the provided spreadsheet.
+This document implements a Global Baseline Estimate recommender in R using the movie ratings survey data collected for Assignment 2A — the same 7-respondent, 6-movie dataset stored in PostgreSQL and documented in `week02_2a_approach.qmd`.
 
 ## The Algorithm
 
@@ -73,81 +73,205 @@ $$
 
 ### 5. Compute Baseline Predictions
 
-Combine $\mu$, $b_u$, and $b_i$ for every (user, movie) pair — including pairs the user has not yet rated — to produce a predicted rating, clipped to the valid scale (e.g., 1–5).
+Combine $\mu$, $b_u$, and $b_i$ for every (user, movie) pair — including pairs the user has not yet rated — to produce a predicted rating, clipped to the valid scale (1–5).
 
 ### 6. Generate Recommendations
 
 For each user, rank the movies they have not yet rated by predicted baseline score and surface the top-ranked titles as recommendations.
 
-## R Implementation Plan
-
-The implementation will rely entirely on base R and `dplyr` — no modeling packages are needed, since the point of a baseline estimate is to be a simple, interpretable benchmark.
+## R Implementation
 
 ```{r}
 #| label: setup
-#| eval: false
 
 library(tidyverse)
-library(readxl)
-
-ratings_wide <- read_excel("MovieRatings.xlsx")
 ```
+
+### Dataset
+
+This reproduces the exact 7-respondent × 6-movie survey table from Assignment 2A (`week02_2a_approach.qmd`), where `NA` marks "haven't seen it" / unanswered cells — never a 0 rating.
+
+```{r}
+#| label: build-dataset
+
+ratings_wide <- tribble(
+  ~user,          ~`Everything Everywhere All at Once`, ~`The Batman`, ~Hereditary, ~Obsession, ~`The Odyssey`, ~`Mean Girls`,
+  "Eduardo",       4,  3, NA, NA,  5, NA,
+  "Annie",         4,  3, NA, NA, NA,  5,
+  "James",         2,  2, NA, NA,  4,  3,
+  "JOYEEEEEEEE",  NA, NA, NA,  5,  4, NA,
+  "Chris",         5, NA,  3,  5, NA,  5,
+  "Garrett",      NA,  4, NA, NA,  4,  3,
+  "Robyn",         1, NA, NA, NA,  4,  4
+)
+
+# To pull live from the Assignment 2A PostgreSQL database instead
+# (same connection pattern as week02_2a_approach.qmd):
+# library(DBI); library(RPostgres)
+# con <- dbConnect(RPostgres::Postgres(),
+#   host = Sys.getenv("PGHOST", "localhost"), port = as.integer(Sys.getenv("PGPORT", "5432")),
+#   dbname = Sys.getenv("PGDATABASE", "movie_ratings"), user = Sys.getenv("PGUSER", "postgres"),
+#   password = Sys.getenv("PGPASSWORD"))
+# ratings_long <- dbGetQuery(con, "SELECT u.name AS user, m.title AS movie, r.rating
+#                             FROM ratings r JOIN users u ON r.user_id = u.user_id
+#                             JOIN movies m ON r.movie_id = m.movie_id") |> filter(!is.na(rating))
+# dbDisconnect(con)
+
+ratings_wide
+```
+
+### Reshape to Long Format
 
 ```{r}
 #| label: reshape-long
-#| eval: false
 
 ratings_long <- ratings_wide |>
-  pivot_longer(
-    cols = -user,
-    names_to = "movie",
-    values_to = "rating"
-  ) |>
+  pivot_longer(-user, names_to = "movie", values_to = "rating") |>
   filter(!is.na(rating))
+
+ratings_long
 ```
+
+### Global Mean
 
 ```{r}
 #| label: global-mean
-#| eval: false
 
-mu <- mean(ratings_long$rating, na.rm = TRUE)
+mu <- mean(ratings_long$rating)
+mu
 ```
+
+### Item Bias
 
 ```{r}
 #| label: item-bias
-#| eval: false
 
 item_bias <- ratings_long |>
   group_by(movie) |>
-  summarize(b_i = mean(rating, na.rm = TRUE) - mu)
+  summarize(b_i = mean(rating) - mu, n_ratings = n(), .groups = "drop")
+
+item_bias
 ```
+
+### User Bias
 
 ```{r}
 #| label: user-bias
-#| eval: false
 
 user_bias <- ratings_long |>
   left_join(item_bias, by = "movie") |>
   group_by(user) |>
-  summarize(b_u = mean(rating - mu - b_i, na.rm = TRUE))
+  summarize(b_u = mean(rating - mu - b_i), n_ratings = n(), .groups = "drop")
+
+user_bias
 ```
+
+### Baseline Predictions
+
+Predictions for every (user, movie) pair, clipped to the 1–5 scale, joined back against the actual rating where one exists.
 
 ```{r}
 #| label: baseline-predictions
-#| eval: false
 
 baseline_predictions <- expand_grid(
-  user = unique(ratings_long$user),
+  user  = unique(ratings_long$user),
   movie = unique(ratings_long$movie)
 ) |>
-  left_join(user_bias, by = "user") |>
-  left_join(item_bias, by = "movie") |>
+  left_join(user_bias |> select(user, b_u), by = "user") |>
+  left_join(item_bias |> select(movie, b_i), by = "movie") |>
   mutate(
-    predicted_rating = mu + b_u + b_i,
-    predicted_rating = pmin(pmax(predicted_rating, 1), 5)
-  )
+    predicted_rating = pmin(pmax(mu + b_u + b_i, 1), 5)
+  ) |>
+  left_join(ratings_long, by = c("user", "movie")) |>
+  rename(actual_rating = rating)
+
+baseline_predictions
 ```
+
+## Validation
+
+### Fit Against Known Ratings
+
+Since baseline estimate has no held-out test set built into a 7-person survey, the standard check is in-sample fit: how close the baseline prediction lands to each rating that's actually known, measured as RMSE.
+
+```{r}
+#| label: validate-rmse
+
+known <- baseline_predictions |> filter(!is.na(actual_rating))
+
+rmse <- sqrt(mean((known$predicted_rating - known$actual_rating)^2))
+rmse
+```
+
+### Manual Spot Check
+
+Hand-verify one prediction outside the pipeline: Eduardo's predicted rating for *Mean Girls* (a movie he didn't rate).
+
+```{r}
+#| label: validate-manual-check
+
+manual_pred <- pmin(pmax(
+  mu +
+    user_bias$b_u[user_bias$user == "Eduardo"] +
+    item_bias$b_i[item_bias$movie == "Mean Girls"],
+  1), 5)
+
+computed_pred <- baseline_predictions |>
+  filter(user == "Eduardo", movie == "Mean Girls") |>
+  pull(predicted_rating)
+
+tibble(manual_pred, computed_pred, match = isTRUE(all.equal(manual_pred, computed_pred)))
+```
+
+## Recommendations
+
+For each respondent, the top-ranked movies they haven't rated, by predicted baseline score.
+
+```{r}
+#| label: recommendations
+
+recommendations <- baseline_predictions |>
+  filter(is.na(actual_rating)) |>
+  group_by(user) |>
+  arrange(desc(predicted_rating), .by_group = TRUE) |>
+  slice_head(n = 3) |>
+  select(user, movie, predicted_rating) |>
+  ungroup()
+
+recommendations
+```
+
+## Visualization
+
+```{r}
+#| label: fig-baseline-heatmap
+#| fig-width: 8
+#| fig-height: 5
+
+baseline_predictions |>
+  mutate(known = !is.na(actual_rating)) |>
+  ggplot(aes(x = movie, y = user, fill = predicted_rating)) +
+  geom_tile(color = "white", linewidth = 0.6) +
+  geom_text(aes(label = ifelse(known, as.character(actual_rating), round(predicted_rating, 1))),
+            color = "white", fontface = "bold") +
+  scale_fill_gradient(low = "#4C72B0", high = "#C44E52", name = "Predicted\nrating") +
+  labs(
+    title = "Global Baseline Estimate: Predicted vs. Actual Ratings",
+    subtitle = "Bold numbers = actual rating given · faint-background numbers = predicted (recommendation candidates)",
+    x = NULL, y = NULL
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+```
+
+## Discussion
+
+With only 7 respondents and 6 movies (22 of 42 possible ratings actually collected), both `b_u` and `b_i` are estimated from very little data — a single rating from a respondent, or a single rating for a movie, can swing that bias substantially. The RMSE above should be read as a sanity check that the model fits the data it was trained on reasonably well, not as evidence of predictive accuracy on new ratings; a proper held-out evaluation would need many more responses than this survey collected.
+
+## Team Note
+
+This assignment was completed individually.
 
 ## Next Steps
 
-The Code Base deliverable (due Sunday) will implement the steps above against the actual survey data, validate predictions against a held-out set of known ratings, and produce a ranked recommendation list per respondent. The Video Explainer (due Monday) will walk through the resulting code and findings.
+The Video Explainer (due Monday) will walk through this code and the resulting recommendations.
