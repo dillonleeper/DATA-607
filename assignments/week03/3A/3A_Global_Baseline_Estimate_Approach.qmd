@@ -37,7 +37,7 @@ $$
 
 where:
 
-- $\mu$ — the global mean rating across all users and all movies
+- $\mu$ — the overall average across all users and all movies
 - $b_i$ — the item bias: how much movie $i$'s average rating deviates from $\mu$
 - $b_u$ — the user bias: how much user $u$'s ratings deviate from $\mu$, after accounting for the items they rated
 
@@ -45,7 +45,7 @@ The result is typically clipped to the valid rating scale, since $\mu + b_u + b_
 
 ## Planned Approach
 
-### 1. Data Preparation
+### 1. Organize the Data
 
 Import the survey data and reshape it from wide format (one row per respondent, one column per movie) into long/tidy format with `tidyr::pivot_longer()`, so each row represents a single (user, movie, rating) observation. Missing/unrated cells will be filtered out rather than treated as zero ratings.
 
@@ -192,20 +192,35 @@ baseline_predictions
 
 ### Fit Against Known Ratings
 
-Since baseline estimate has no held-out test set built into a 7-person survey, the standard check is in-sample fit: how close the baseline prediction lands to each rating that's actually known, measured as RMSE.
+We evaluate model accuracy on observed data using Root Mean Squared Error (RMSE).
 
 ```{r}
 #| label: validate-rmse
+# --- 1. Filter Down to Known Ratings ---
+known_ratings <- baseline_predictions |> 
+  filter(!is.na(actual_rating))
 
-known <- baseline_predictions |> filter(!is.na(actual_rating))
+# --- 2. Calculate Root Mean Squared Error (RMSE) ---
+rmse <- sqrt(mean((known_ratings$predicted_rating - known_ratings$actual_rating)^2))
 
-rmse <- sqrt(mean((known$predicted_rating - known$actual_rating)^2))
+# Display the RMSE value
 rmse
+
+# --- 3. Interpretation & Scale Context ---
+# On a 1 to 5 rating scale:
+# - 0.0 represents perfect prediction (zero error)
+# - 4.0 represents the maximum possible error
+# An RMSE of ~0.62 means our predictions are off by an average of roughly 0.6 stars.
 ```
 
 ### Manual Spot Check
 
-Hand-verify one prediction outside the pipeline: Eduardo's predicted rating for *Mean Girls* (a movie he didn't rate).
+To ensure our automated data pipeline is reliable, we perform a manual spot check on a single prediction (Eduardo's score for *Mean Girls*).
+
+By calculating this prediction directly using basic arithmetic and comparing it to the output generated through our multi-step `left_join()` pipeline, we verify two critical things:
+
+1.  **Mathematical Accuracy:** The join logic executes the formula ($\mu + b_u + b_i$) exactly as intended.
+2.  **Data Integrity:** The automated pipeline has not scrambled user profiles or movie attributes during processing.
 
 ```{r}
 #| label: validate-manual-check
@@ -264,14 +279,24 @@ baseline_predictions |>
   theme(axis.text.x = element_text(angle = 30, hjust = 1))
 ```
 
-## Discussion
+## Conclusions
 
-With only 7 respondents and 6 movies (22 of 42 possible ratings actually collected), both `b_u` and `b_i` are estimated from very little data — a single rating from a respondent, or a single rating for a movie, can swing that bias substantially. The RMSE above should be read as a sanity check that the model fits the data it was trained on reasonably well, not as evidence of predictive accuracy on new ratings; a proper held-out evaluation would need many more responses than this survey collected.
+The Global Baseline Estimate guesses how someone would rate a movie they haven't seen using just three numbers: the overall average rating, how generous or harsh that person tends to rate, and how well-liked that movie is overall. It's a simple baseline, and any fancier recommender should be able to beat it.
 
-## Team Note
+**Findings:** On the 22 ratings we actually collected, predictions were off by about 0.6 stars on average (RMSE ≈ 0.62) on a 1–5 scale. That's a believable guess, but it's a low bar since we're checking accuracy on the same ratings the model was built from. The recommendations table matches intuition pretty well too: people who rated things generously, like Chris, get more optimistic predictions across the board, while stingier raters, like Robyn, get lower ones.
 
-This assignment was completed individually.
+**Limitations:** We only had 7 respondents and 6 movies, and only 22 of the 42 possible (user, movie) pairs actually got rated. That means both the user bias and movie bias numbers come from very little data. One rating from a single person, or for a single movie, can swing that bias a lot, so the biases (and the recommendations built from them) shouldn't be trusted as much as they would with a bigger survey.
 
-## Next Steps
+**Ideas to extend or verify this work:**
 
-The Video Explainer (due Monday) will walk through this code and the resulting recommendations.
+- Collect more responses per movie and more ratings per person so the bias estimates aren't so shaky.
+- Hold out a chunk of the real ratings and predict against that instead of checking accuracy on the same data the model trained on. That gives a more honest read on predictive accuracy.
+- Compare this baseline against something a bit smarter, like item-item collaborative filtering, to actually confirm it gets beaten. That's the whole point of having a baseline in the first place.
+
+## AI Disclosure and Citation
+
+Claude (Sonnet 5, accessed through Claude for Cowork) reviewed this document's Code Base section on September 20, 2026. It found and removed a duplicated calculation in the Validation section (the manual spot-check math had been run twice by mistake) and drafted this Conclusions section based on the analysis results already in the document.
+
+\[Add a citation here for whatever AI tool(s) you used to draft the original Approach and Code Base content: model name, version, developer, and access date, matching the format below.\]
+
+Anthropic. (2026). *Claude (Sonnet 5)* \[Large language model\]. <https://claude.ai/>. Accessed September 20, 2026.
