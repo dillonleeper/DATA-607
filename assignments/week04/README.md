@@ -9,6 +9,7 @@ This folder contains the source files and deliverables for DATA 607 Project 1. T
 - `project1-results.csv` — final output table containing all 64 players and the five required fields.
 - `tournament-results.txt` — instructor-provided raw tournament results.
 - `ai-transcript.md` — transcript of AI interactions used while completing the assignment.
+- `project1-codebase-walkthrough.html` — optional visual study guide explaining the QMD in plain language.
 - `README.md` — project overview and reproduction notes.
 
 ## Data source

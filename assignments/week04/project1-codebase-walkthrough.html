@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project 1 Code Base Walkthrough</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;500;600&family=Roboto:wght@400;500;700&display=swap');
+
+    :root {
+      --blue: #1a73e8;
+      --blue-soft: #e8f0fe;
+      --green: #188038;
+      --green-soft: #e6f4ea;
+      --yellow: #f9ab00;
+      --red: #d93025;
+      --ink: #202124;
+      --muted: #5f6368;
+      --line: #dadce0;
+      --paper: #ffffff;
+      --wash: #f8fafd;
+      --code: #18212f;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #eef2f7;
+      color: var(--ink);
+      font-family: "Google Sans", "Google Sans Text", Roboto, Arial, sans-serif;
+    }
+
+    .deck { width: 100%; height: 100%; position: relative; }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      padding: clamp(34px, 5vw, 78px) clamp(42px, 7vw, 112px);
+      background: var(--paper);
+      overflow: hidden;
+    }
+
+    .slide.active { display: flex; animation: enter .28s ease-out; }
+    @keyframes enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      right: -190px;
+      top: -190px;
+      border: 46px solid var(--blue-soft);
+      border-radius: 50%;
+    }
+
+    .eyebrow {
+      color: var(--blue);
+      font-size: clamp(14px, 1.25vw, 20px);
+      font-weight: 700;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: clamp(48px, 6vw, 92px); line-height: 1.02; letter-spacing: -.045em; margin-bottom: 26px; max-width: 1050px; }
+    h2 { font-size: clamp(36px, 4.4vw, 68px); line-height: 1.08; letter-spacing: -.035em; margin-bottom: 30px; max-width: 1100px; }
+    h3 { font-size: clamp(22px, 2vw, 32px); line-height: 1.2; margin-bottom: 10px; }
+    p, li { font-size: clamp(20px, 1.8vw, 30px); line-height: 1.42; }
+    p { max-width: 1100px; }
+    .lead { color: var(--muted); font-size: clamp(24px, 2.4vw, 38px); max-width: 980px; }
+    .small { font-size: clamp(16px, 1.25vw, 21px); color: var(--muted); }
+    strong { font-weight: 700; }
+    .blue { color: var(--blue); }
+    .green { color: var(--green); }
+
+    .title-mark {
+      width: 72px;
+      height: 8px;
+      border-radius: 8px;
+      background: linear-gradient(90deg, var(--blue) 0 55%, var(--yellow) 55% 78%, var(--green) 78%);
+      margin-bottom: 30px;
+    }
+
+    .split { display: grid; grid-template-columns: 1.02fr .98fr; gap: clamp(30px, 5vw, 80px); align-items: center; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(26px, 4vw, 62px); align-items: start; }
+    .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
+
+    .flat-block { border-left: 5px solid var(--blue); padding: 4px 0 4px 24px; margin: 24px 0; }
+    .flat-block.green-border { border-color: var(--green); }
+    .flat-block.yellow-border { border-color: var(--yellow); }
+
+    .code {
+      background: var(--code);
+      color: #e8eaed;
+      border-radius: 18px;
+      padding: clamp(20px, 2.5vw, 36px);
+      font-family: "Roboto Mono", Consolas, monospace;
+      font-size: clamp(14px, 1.25vw, 21px);
+      line-height: 1.58;
+      white-space: pre-wrap;
+      box-shadow: 0 14px 34px rgba(32,33,36,.16);
+    }
+    .code .fn { color: #8ab4f8; }
+    .code .str { color: #81c995; }
+    .code .num { color: #fdd663; }
+    .code .com { color: #9aa0a6; }
+
+    .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; align-items: stretch; margin-top: 46px; }
+    .flow-step { position: relative; padding: 25px 18px; border-top: 5px solid var(--blue); background: var(--wash); min-height: 140px; }
+    .flow-step:nth-child(2) { border-color: #4f8fe8; }
+    .flow-step:nth-child(3) { border-color: var(--yellow); }
+    .flow-step:nth-child(4) { border-color: var(--green); }
+    .flow-step:nth-child(5) { border-color: #7b61a8; }
+    .flow-step b { display: block; font-size: clamp(18px, 1.5vw, 25px); margin-bottom: 8px; }
+    .flow-step span { color: var(--muted); font-size: clamp(14px, 1.12vw, 19px); line-height: 1.35; }
+
+    .record {
+      font-family: "Roboto Mono", Consolas, monospace;
+      background: var(--wash);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 23px 26px;
+      font-size: clamp(13px, 1.15vw, 19px);
+      line-height: 1.65;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    .record .hit { background: #fce8b2; color: #5f4300; padding: 2px 4px; border-radius: 4px; }
+    .record .field { color: var(--blue); font-weight: 700; }
+
+    .formula {
+      font-family: "Roboto Mono", Consolas, monospace;
+      font-size: clamp(20px, 2vw, 32px);
+      padding: 24px 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      margin: 24px 0;
+    }
+
+    .checks { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 18px 44px; }
+    .checks li { position: relative; padding-left: 42px; }
+    .checks li::before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+
+    .table { width: 100%; border-collapse: collapse; font-size: clamp(14px, 1.3vw, 21px); }
+    .table th { text-align: left; color: var(--muted); font-weight: 500; border-bottom: 2px solid var(--line); padding: 13px 10px; }
+    .table td { border-bottom: 1px solid var(--line); padding: 14px 10px; }
+    .table tr:first-of-type td { background: var(--green-soft); font-weight: 700; }
+
+    .number {
+      font-size: clamp(66px, 8vw, 122px);
+      font-weight: 700;
+      letter-spacing: -.06em;
+      color: var(--blue);
+      line-height: .9;
+    }
+
+    .nav {
+      position: fixed;
+      z-index: 20;
+      right: 24px;
+      bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 14px;
+      user-select: none;
+    }
+    .nav button {
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: rgba(255,255,255,.92);
+      color: var(--ink);
+      font: inherit;
+      cursor: pointer;
+    }
+    .nav button:hover { border-color: var(--blue); color: var(--blue); }
+    .progress { position: fixed; z-index: 20; left: 0; bottom: 0; height: 5px; background: var(--blue); transition: width .2s ease; }
+    .hint { position: fixed; z-index: 20; left: 24px; bottom: 22px; color: var(--muted); font-size: 13px; }
+
+    @media (max-width: 820px) {
+      .slide { justify-content: flex-start; overflow-y: auto; padding-top: 52px; padding-bottom: 90px; }
+      .split, .two-col, .three-col { grid-template-columns: 1fr; }
+      .flow { grid-template-columns: 1fr; margin-top: 20px; }
+      .flow-step { min-height: 0; }
+      .checks { grid-template-columns: 1fr; }
+      .hint { display: none; }
+    }
+
+    @media print {
+      html, body { overflow: visible; background: white; }
+      .slide { position: relative; display: flex !important; width: 100vw; min-height: 100vh; page-break-after: always; }
+      .nav, .progress, .hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-live="polite">
+    <section class="slide active">
+      <div class="title-mark"></div>
+      <div class="eyebrow">DATA 607 · PROJECT 1</div>
+      <h1>Your chess code base, explained like a human</h1>
+      <p class="lead">A visual walkthrough of what the QMD reads, calculates, checks, and exports.</p>
+      <p class="small" style="margin-top:38px">Dillon Leeper · Use the arrow keys to move through the deck</p>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">THE BIG PICTURE</div>
+      <h2>One messy report becomes one clean table</h2>
+      <div class="flow">
+        <div class="flow-step"><b>Read</b><span>Download the raw tournament text from GitHub.</span></div>
+        <div class="flow-step"><b>Find</b><span>Locate the two lines that belong to each player.</span></div>
+        <div class="flow-step"><b>Extract</b><span>Pull out names, states, points, ratings, and opponents.</span></div>
+        <div class="flow-step"><b>Calculate</b><span>Look up opponent ratings and find each average.</span></div>
+        <div class="flow-step"><b>Check</b><span>Verify 64 players and export the final CSV.</span></div>
+      </div>
+      <p class="small" style="margin-top:34px">Everything else in the document supports one of these five jobs.</p>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 1</div>
+      <div class="split">
+        <div>
+          <h2>The YAML controls the document</h2>
+          <div class="flat-block"><p><strong>HTML</strong> creates the webpage.</p></div>
+          <div class="flat-block green-border"><p><strong>toc</strong> adds the table of contents.</p></div>
+          <div class="flat-block yellow-border"><p><strong>embed-resources</strong> keeps the result in one portable file.</p></div>
+        </div>
+        <div class="code">---
+title: <span class="str">"Project 1: Code Base"</span>
+author: <span class="str">"Dillon Leeper"</span>
+format:
+  html:
+    toc: <span class="fn">true</span>
+    code-fold: <span class="fn">show</span>
+    embed-resources: <span class="fn">true</span>
+---</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 2</div>
+      <h2>The introduction and approach tell the reader what to expect</h2>
+      <div class="two-col">
+        <div>
+          <h3 class="blue">Introduction</h3>
+          <p>Defines the dataset, the goal, and the five required output columns.</p>
+          <p class="small">The public source link lets someone else run the work.</p>
+        </div>
+        <div>
+          <h3 class="green">Approach</h3>
+          <p>Explains how the parser will handle two-line player records, opponent numbers, and special round codes.</p>
+          <p class="small">This section shows that the solution was planned before it was coded.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 3</div>
+      <div class="split">
+        <div>
+          <h2>Loading the data</h2>
+          <p>R saves the public web address, then downloads the file as a list of individual text lines.</p>
+          <div class="flat-block"><p><strong>Reproducibility:</strong> the code does not depend on a file that exists only on your computer.</p></div>
+        </div>
+        <div class="code">data_url &lt;- <span class="fn">paste0</span>(
+  <span class="str">"https://raw.githubusercontent.com/"</span>,
+  <span class="str">".../tournament-results.txt"</span>
+)
+
+tournament_lines &lt;- <span class="fn">readLines</span>(
+  data_url,
+  warn = <span class="fn">FALSE</span>
+)</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 4</div>
+      <h2>Finding the start of every player record</h2>
+      <div class="record"><span class="hit">1 |</span> GARY HUA | 6.0 | W 39 | W 21 | W 18 | ...</div>
+      <div class="record" style="margin-top:14px">ON | 15445895 / R: 1794 -&gt; 1817 | ...</div>
+      <div class="formula">^\s*[0-9]+\s*\|</div>
+      <p>The search pattern finds lines that begin with a number and a vertical bar. The next line automatically belongs to that same player.</p>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 5</div>
+      <div class="split">
+        <div>
+          <h2>Opponent entries become player numbers</h2>
+          <p><strong>W 39</strong> becomes opponent <strong>39</strong>.</p>
+          <p><strong>B</strong>, <strong>H</strong>, <strong>U</strong>, and <strong>X</strong> contain no player number, so they become missing values.</p>
+          <div class="flat-block green-border"><p>That keeps byes and status codes out of the rating average.</p></div>
+        </div>
+        <div class="code"><span class="fn">extract_first_integer</span> &lt;- function(value) {
+  position &lt;- <span class="fn">regexpr</span>(<span class="str">"[0-9]+"</span>, value)
+
+  if (position[<span class="num">1</span>] == -<span class="num">1</span>) {
+    return(<span class="fn">NA_integer_</span>)
+  }
+
+  <span class="fn">as.integer</span>(
+    <span class="fn">regmatches</span>(value, position)
+  )
+}</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 6</div>
+      <h2>Parsing one player’s two lines</h2>
+      <div class="two-col">
+        <div class="record"><span class="field">FIRST LINE</span><br>1<br>GARY HUA<br>6.0<br>W 39 · W 21 · W 18 · ...</div>
+        <div class="record"><span class="field">SECOND LINE</span><br>ON<br>15445895 / R: 1794 -&gt; 1817<br>color history</div>
+      </div>
+      <p style="margin-top:30px"><code>strsplit()</code> cuts at each vertical bar. <code>trimws()</code> removes extra spaces. The parser then labels the pieces that matter.</p>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 7</div>
+      <div class="split">
+        <div>
+          <h2>One parser runs 64 times</h2>
+          <div class="number">64</div>
+          <p class="lead">player records</p>
+          <p><code>lapply()</code> sends every detected player line through the same parsing function.</p>
+        </div>
+        <div>
+          <div class="flat-block"><h3>Player table</h3><p>Name, state, points, and pre-rating.</p></div>
+          <div class="flat-block green-border"><h3>Opponent table</h3><p>Seven columns containing the opponent number from each round.</p></div>
+          <p class="small">Keeping these tables separate makes the later rating lookup easier to understand.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 8</div>
+      <h2>The rating lookup connects IDs to ratings</h2>
+      <div class="two-col">
+        <div>
+          <div class="record">Player 39 <span class="blue">= 1436</span><br>Player 21 <span class="blue">= 1563</span><br>Player 18 <span class="blue">= 1600</span><br>Player 14 <span class="blue">= 1610</span></div>
+        </div>
+        <div>
+          <p>Each opponent is stored as a player number. The lookup turns that number into the player’s pre-tournament rating.</p>
+          <div class="code">rating_lookup &lt;- <span class="fn">setNames</span>(
+  players$pre_rating,
+  players$player_number
+)</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 9</div>
+      <h2>Gary Hua’s calculation</h2>
+      <p class="lead">Seven opponent ratings go into one average.</p>
+      <div class="formula">(1436 + 1563 + 1600 + 1610 + 1649 + 1663 + 1716) ÷ 7</div>
+      <div class="two-col" style="align-items:end">
+        <p><code>mean()</code> calculates the average. <code>round()</code> returns the nearest whole rating.</p>
+        <div><span class="number green">1605</span><p class="small">average opponent pre-rating</p></div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 10</div>
+      <h2>The final table contains only the required fields</h2>
+      <table class="table">
+        <thead><tr><th>player_name</th><th>state</th><th>total_points</th><th>pre_rating</th><th>average_opponent_pre_rating</th></tr></thead>
+        <tbody>
+          <tr><td>GARY HUA</td><td>ON</td><td>6</td><td>1794</td><td>1605</td></tr>
+          <tr><td>DAKSHESH DARURI</td><td>MI</td><td>6</td><td>1553</td><td>1469</td></tr>
+          <tr><td>ADITYA BAJAJ</td><td>MI</td><td>6</td><td>1384</td><td>1564</td></tr>
+        </tbody>
+      </table>
+      <p class="small" style="margin-top:24px">Player numbers and round details helped with the calculation, but the assignment does not require them in the exported CSV.</p>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 11</div>
+      <h2>The validation block acts like a safety net</h2>
+      <ul class="checks">
+        <li>Exactly 64 output rows</li>
+        <li>Player numbers 1 through 64</li>
+        <li>Every opponent exists</li>
+        <li>Gary Hua appears once</li>
+        <li>Gary’s values match the prompt</li>
+        <li>No required values are missing</li>
+      </ul>
+      <div class="flat-block green-border" style="margin-top:40px"><p><strong>stopifnot()</strong> stops the render immediately when any check fails. A broken result cannot quietly become the final CSV.</p></div>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">PART 12</div>
+      <div class="split">
+        <div>
+          <h2>Rendering creates both deliverables</h2>
+          <p><strong>project1.html</strong> explains and displays the analysis.</p>
+          <p><strong>project1-results.csv</strong> contains all 64 clean player records.</p>
+        </div>
+        <div class="code"><span class="fn">write.csv</span>(
+  project1_results,
+  <span class="str">"project1-results.csv"</span>,
+  row.names = <span class="fn">FALSE</span>
+)</div>
+      </div>
+      <p class="small" style="margin-top:30px">The conclusion uses inline R values, so the written results stay synchronized with the calculations.</p>
+    </section>
+
+    <section class="slide">
+      <div class="eyebrow">THE MENTAL MODEL</div>
+      <h2>You built a small data pipeline</h2>
+      <div class="flow">
+        <div class="flow-step"><b>Raw text</b><span>Human-readable tournament report</span></div>
+        <div class="flow-step"><b>Parser</b><span>Two lines become one player record</span></div>
+        <div class="flow-step"><b>Lookup</b><span>Opponent IDs become ratings</span></div>
+        <div class="flow-step"><b>Tests</b><span>Bad output stops before export</span></div>
+        <div class="flow-step"><b>CSV</b><span>Clean data ready for analysis</span></div>
+      </div>
+      <p class="lead" style="margin-top:38px">That is the whole QMD: read, organize, calculate, verify, export.</p>
+    </section>
+  </main>
+
+  <div class="hint">← → arrow keys · Home · End · F for fullscreen</div>
+  <div class="nav">
+    <button id="prev" aria-label="Previous slide">←</button>
+    <span id="counter">1 / 14</span>
+    <button id="next" aria-label="Next slide">→</button>
+  </div>
+  <div class="progress" id="progress"></div>
+
+  <script>
+    const slides = [...document.querySelectorAll('.slide')];
+    const counter = document.getElementById('counter');
+    const progress = document.getElementById('progress');
+    let current = 0;
+
+    function showSlide(index) {
+      current = Math.max(0, Math.min(index, slides.length - 1));
+      slides.forEach((slide, i) => slide.classList.toggle('active', i === current));
+      counter.textContent = `${current + 1} / ${slides.length}`;
+      progress.style.width = `${((current + 1) / slides.length) * 100}%`;
+      history.replaceState(null, '', `#${current + 1}`);
+    }
+
+    function fullscreen() {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+      else document.exitFullscreen?.();
+    }
+
+    document.getElementById('prev').addEventListener('click', () => showSlide(current - 1));
+    document.getElementById('next').addEventListener('click', () => showSlide(current + 1));
+    document.addEventListener('keydown', event => {
+      if (['ArrowRight', 'PageDown', ' '].includes(event.key)) showSlide(current + 1);
+      if (['ArrowLeft', 'PageUp'].includes(event.key)) showSlide(current - 1);
+      if (event.key === 'Home') showSlide(0);
+      if (event.key === 'End') showSlide(slides.length - 1);
+      if (event.key.toLowerCase() === 'f') fullscreen();
+    });
+
+    const requested = Number(location.hash.slice(1));
+    showSlide(Number.isFinite(requested) && requested > 0 ? requested - 1 : 0);
+  </script>
+</body>
+</html>
