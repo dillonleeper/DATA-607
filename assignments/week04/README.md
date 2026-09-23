@@ -4,9 +4,9 @@ This folder contains the source files and deliverables for DATA 607 Project 1. T
 
 ## Files
 
-- `project1.qmd` — Quarto source document. The same file is used for the Approach and will be expanded for the Code Base deliverable.
+- `project1.qmd` — Quarto source document containing the Approach and complete Code Base analysis.
 - `project1.html` — rendered HTML version of the Quarto document.
-- `project1-results.csv` — final output table. It currently contains the required column headings and will be populated by the Code Base analysis.
+- `project1-results.csv` — final output table containing all 64 players and the five required fields.
 - `tournament-results.txt` — instructor-provided raw tournament results.
 - `ai-transcript.md` — transcript of AI interactions used while completing the assignment.
 - `README.md` — project overview and reproduction notes.
@@ -19,7 +19,7 @@ The tournament file can be read directly from this public URL:
 
 ## Required output
 
-The completed analysis will produce one row for each of the 64 players with these columns:
+The completed analysis produces one row for each of the 64 players with these columns:
 
 1. Player name
 2. State
@@ -31,7 +31,7 @@ The assignment's validation example is Gary Hua: Ontario, 6.0 points, a pre-rati
 
 ## Reproducing the work
 
-Open `project1.qmd` in RStudio and select **Render**. The analysis will read the raw data from the public GitHub URL rather than a local path. The Code Base version will contain all parsing, validation, and CSV-export code needed to recreate `project1-results.csv`.
+Open `project1.qmd` in RStudio and select **Render**. The analysis reads the raw data from the public GitHub URL rather than a local path. Rendering the document runs the parsing, calculation, and validation code and recreates `project1-results.csv`.
 
 ## Publication
 

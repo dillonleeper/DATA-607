@@ -1,5 +1,5 @@
 ---
-title: "Project 1"
+title: "Project 1: Code Base"
 author: "Dillon Leeper"
 format:
   html:
@@ -24,3 +24,171 @@ Next, I will create a lookup table that connects each player number to that play
 One expected challenge is that some ratings contain provisional-game indicators, such as `1641P17`. I will extract only the numerical rating portion. I will also account for inconsistent spacing in the text file by using patterns rather than relying entirely on fixed character positions.
 
 To verify the transformation, I will confirm that Gary Hua's calculated average opponent rating rounds to 1605, as shown in the assignment instructions. I will also check that the completed dataset contains one row for each of the 64 players before exporting it as a CSV file. The raw data is stored at a publicly accessible GitHub URL so that the analysis can run without relying on a local file path.
+
+## Load the data
+
+The analysis reads the instructor-provided tournament report from its public GitHub URL. This makes the document reproducible without requiring a file stored on my computer.
+
+```{r}
+#| label: load-data
+#| message: false
+#| warning: false
+
+data_url <- paste0(
+  "https://raw.githubusercontent.com/dillonleeper/",
+  "DATA-607/main/assignments/week04/tournament-results.txt"
+)
+
+tournament_lines <- readLines(data_url, warn = FALSE)
+
+length(tournament_lines)
+```
+
+## Parse the player records
+
+Each player occupies two lines in the source report. A player line begins with a numeric pair number, and the following line contains the player's state and rating information. Splitting the lines at the vertical bars makes it possible to extract the fields without depending on exact character positions.
+
+```{r}
+#| label: parse-records
+
+player_line_numbers <- grep("^\\s*[0-9]+\\s*\\|", tournament_lines)
+
+extract_first_integer <- function(value) {
+  match_position <- regexpr("[0-9]+", value)
+
+  if (match_position[1] == -1) {
+    return(NA_integer_)
+  }
+
+  as.integer(regmatches(value, match_position))
+}
+
+parse_player <- function(line_number) {
+  player_fields <- trimws(strsplit(
+    tournament_lines[line_number],
+    "|",
+    fixed = TRUE
+  )[[1]])
+
+  detail_fields <- trimws(strsplit(
+    tournament_lines[line_number + 1],
+    "|",
+    fixed = TRUE
+  )[[1]])
+
+  round_fields <- player_fields[4:10]
+
+  list(
+    player_number = as.integer(player_fields[1]),
+    player_name = player_fields[2],
+    state = detail_fields[1],
+    total_points = as.numeric(player_fields[3]),
+    pre_rating = as.integer(sub(
+      "^.*R:\\s*([0-9]+).*$",
+      "\\1",
+      detail_fields[2]
+    )),
+    opponents = vapply(
+      round_fields,
+      extract_first_integer,
+      integer(1)
+    )
+  )
+}
+
+player_records <- lapply(player_line_numbers, parse_player)
+
+players <- data.frame(
+  player_number = vapply(player_records, `[[`, integer(1), "player_number"),
+  player_name = vapply(player_records, `[[`, character(1), "player_name"),
+  state = vapply(player_records, `[[`, character(1), "state"),
+  total_points = vapply(player_records, `[[`, numeric(1), "total_points"),
+  pre_rating = vapply(player_records, `[[`, integer(1), "pre_rating"),
+  stringsAsFactors = FALSE
+)
+
+opponents <- do.call(
+  rbind,
+  lapply(player_records, `[[`, "opponents")
+)
+
+colnames(opponents) <- paste0("round_", 1:7)
+
+head(players)
+```
+
+Codes such as `B`, `H`, `U`, and `X` do not contain a player number, so the parsing function records those rounds as missing values. They are therefore excluded from the opponent-rating calculation rather than being treated as players.
+
+## Calculate average opponent ratings
+
+The named vector below connects each pair number to its pre-tournament rating. For every player, the calculation retrieves the ratings associated with the valid opponent numbers and averages them across the rounds played.
+
+```{r}
+#| label: calculate-results
+
+rating_lookup <- setNames(players$pre_rating, players$player_number)
+
+valid_opponent_numbers <- opponents[!is.na(opponents)]
+
+average_opponent_rating <- apply(opponents, 1, function(opponent_numbers) {
+  opponent_numbers <- opponent_numbers[!is.na(opponent_numbers)]
+  opponent_ratings <- rating_lookup[as.character(opponent_numbers)]
+  round(mean(opponent_ratings))
+})
+
+project1_results <- data.frame(
+  player_name = players$player_name,
+  state = players$state,
+  total_points = players$total_points,
+  pre_rating = players$pre_rating,
+  average_opponent_pre_rating = as.integer(average_opponent_rating),
+  stringsAsFactors = FALSE
+)
+
+knitr::kable(
+  head(project1_results, 10),
+  caption = "First 10 rows of the completed tournament dataset"
+)
+```
+
+## Verify and export the result
+
+The following checks confirm that the parser found all 64 players, that every recorded opponent maps to a player in the tournament, and that Gary Hua's values match the example in the assignment. The final check also confirms that none of the five required output columns contains a missing value.
+
+```{r}
+#| label: validation-checks
+
+gary_hua <- project1_results[
+  project1_results$player_name == "GARY HUA",
+]
+
+stopifnot(
+  nrow(project1_results) == 64,
+  identical(players$player_number, 1:64),
+  all(valid_opponent_numbers %in% players$player_number),
+  nrow(gary_hua) == 1,
+  gary_hua$state == "ON",
+  gary_hua$total_points == 6,
+  gary_hua$pre_rating == 1794,
+  gary_hua$average_opponent_pre_rating == 1605,
+  !anyNA(project1_results)
+)
+
+write.csv(
+  project1_results,
+  "project1-results.csv",
+  row.names = FALSE
+)
+
+gary_hua
+```
+
+## Conclusions
+
+The analysis successfully transformed the semi-structured tournament report into a clean dataset containing all `r nrow(project1_results)` players. Gary Hua earned 6.0 points with a pre-tournament rating of 1794, and his seven opponents had an average pre-tournament rating of `r gary_hua$average_opponent_pre_rating`, which matches the assignment's expected result.
+
+The result can support further questions about tournament performance, such as whether players who faced stronger opponents earned fewer points or which players performed above expectations relative to their starting ratings. A useful extension would be to include post-tournament ratings and calculate rating changes, allowing performance in this tournament to be compared with each player's change in USCF rating.
+
+## Data source
+
+The raw tournament report was supplied by the course instructor and is stored in this repository as [`tournament-results.txt`](https://github.com/dillonleeper/DATA-607/blob/main/assignments/week04/tournament-results.txt).

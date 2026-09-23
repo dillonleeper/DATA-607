@@ -8,7 +8,7 @@
 
 <meta name="author" content="Dillon Leeper">
 
-<title>Project 1</title>
+<title>Project 1: Code Base</title>
 <style>
 
 span.smallcaps{font-variant: small-caps;}
@@ -23,6 +23,41 @@ ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
 width: 0.8em;
 margin: 0 0.8em 0.2em -1em;  vertical-align: middle;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+}
+pre.numberSource { margin-left: 3em; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
 </style>
 
@@ -2178,6 +2213,12 @@ vertical-align: -.125em;
   <ul>
   <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a></li>
   <li><a href="#approach" id="toc-approach" class="nav-link" data-scroll-target="#approach">Approach</a></li>
+  <li><a href="#load-the-data" id="toc-load-the-data" class="nav-link" data-scroll-target="#load-the-data">Load the data</a></li>
+  <li><a href="#parse-the-player-records" id="toc-parse-the-player-records" class="nav-link" data-scroll-target="#parse-the-player-records">Parse the player records</a></li>
+  <li><a href="#calculate-average-opponent-ratings" id="toc-calculate-average-opponent-ratings" class="nav-link" data-scroll-target="#calculate-average-opponent-ratings">Calculate average opponent ratings</a></li>
+  <li><a href="#verify-and-export-the-result" id="toc-verify-and-export-the-result" class="nav-link" data-scroll-target="#verify-and-export-the-result">Verify and export the result</a></li>
+  <li><a href="#conclusions" id="toc-conclusions" class="nav-link" data-scroll-target="#conclusions">Conclusions</a></li>
+  <li><a href="#data-source" id="toc-data-source" class="nav-link" data-scroll-target="#data-source">Data source</a></li>
   </ul>
 </nav>
 </div>
@@ -2185,7 +2226,7 @@ vertical-align: -.125em;
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Project 1</h1>
+<h1 class="title">Project 1: Code Base</h1>
 </div>
 
 
@@ -2219,6 +2260,279 @@ vertical-align: -.125em;
 <p>Next, I will create a lookup table that connects each player number to that player’s pre-tournament rating. I will use the opponent numbers from each round to retrieve the corresponding ratings and calculate each player’s average opponent rating. Rounds without an actual opponent, including byes and other entries marked <code>B</code>, <code>H</code>, <code>U</code>, or <code>X</code>, will be excluded from the calculation.</p>
 <p>One expected challenge is that some ratings contain provisional-game indicators, such as <code>1641P17</code>. I will extract only the numerical rating portion. I will also account for inconsistent spacing in the text file by using patterns rather than relying entirely on fixed character positions.</p>
 <p>To verify the transformation, I will confirm that Gary Hua’s calculated average opponent rating rounds to 1605, as shown in the assignment instructions. I will also check that the completed dataset contains one row for each of the 64 players before exporting it as a CSV file. The raw data is stored at a publicly accessible GitHub URL so that the analysis can run without relying on a local file path.</p>
+</section>
+<section id="load-the-data" class="level2">
+<h2 class="anchored" data-anchor-id="load-the-data">Load the data</h2>
+<p>The analysis reads the instructor-provided tournament report from its public GitHub URL. This makes the document reproducible without requiring a file stored on my computer.</p>
+<div class="cell">
+<details open class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>data_url <span class="ot">&lt;-</span> <span class="fu">paste0</span>(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;https://raw.githubusercontent.com/dillonleeper/&quot;</span>,</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;DATA-607/main/assignments/week04/tournament-results.txt&quot;</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>tournament_lines <span class="ot">&lt;-</span> <span class="fu">readLines</span>(data_url, <span class="at">warn =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a><span class="fu">length</span>(tournament_lines)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 196</code></pre>
+</div>
+</div>
+</section>
+<section id="parse-the-player-records" class="level2">
+<h2 class="anchored" data-anchor-id="parse-the-player-records">Parse the player records</h2>
+<p>Each player occupies two lines in the source report. A player line begins with a numeric pair number, and the following line contains the player’s state and rating information. Splitting the lines at the vertical bars makes it possible to extract the fields without depending on exact character positions.</p>
+<div class="cell">
+<details open class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>player_line_numbers <span class="ot">&lt;-</span> <span class="fu">grep</span>(<span class="st">&quot;^</span><span class="sc">\\</span><span class="st">s*[0-9]+</span><span class="sc">\\</span><span class="st">s*</span><span class="sc">\\</span><span class="st">|&quot;</span>, tournament_lines)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>extract_first_integer <span class="ot">&lt;-</span> <span class="cf">function</span>(value) {</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>  match_position <span class="ot">&lt;-</span> <span class="fu">regexpr</span>(<span class="st">&quot;[0-9]+&quot;</span>, value)</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (match_position[<span class="dv">1</span>] <span class="sc">==</span> <span class="sc">-</span><span class="dv">1</span>) {</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    <span class="fu">return</span>(<span class="cn">NA_integer_</span>)</span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.integer</span>(<span class="fu">regmatches</span>(value, match_position))</span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>parse_player <span class="ot">&lt;-</span> <span class="cf">function</span>(line_number) {</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>  player_fields <span class="ot">&lt;-</span> <span class="fu">trimws</span>(<span class="fu">strsplit</span>(</span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>    tournament_lines[line_number],</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;|&quot;</span>,</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>    <span class="at">fixed =</span> <span class="cn">TRUE</span></span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>  )[[<span class="dv">1</span>]])</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  detail_fields <span class="ot">&lt;-</span> <span class="fu">trimws</span>(<span class="fu">strsplit</span>(</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>    tournament_lines[line_number <span class="sc">+</span> <span class="dv">1</span>],</span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;|&quot;</span>,</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a>    <span class="at">fixed =</span> <span class="cn">TRUE</span></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>  )[[<span class="dv">1</span>]])</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>  round_fields <span class="ot">&lt;-</span> player_fields[<span class="dv">4</span><span class="sc">:</span><span class="dv">10</span>]</span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>    <span class="at">player_number =</span> <span class="fu">as.integer</span>(player_fields[<span class="dv">1</span>]),</span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>    <span class="at">player_name =</span> player_fields[<span class="dv">2</span>],</span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>    <span class="at">state =</span> detail_fields[<span class="dv">1</span>],</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>    <span class="at">total_points =</span> <span class="fu">as.numeric</span>(player_fields[<span class="dv">3</span>]),</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    <span class="at">pre_rating =</span> <span class="fu">as.integer</span>(<span class="fu">sub</span>(</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>      <span class="st">&quot;^.*R:</span><span class="sc">\\</span><span class="st">s*([0-9]+).*$&quot;</span>,</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>      <span class="st">&quot;</span><span class="sc">\\</span><span class="st">1&quot;</span>,</span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>      detail_fields[<span class="dv">2</span>]</span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>    )),</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>    <span class="at">opponents =</span> <span class="fu">vapply</span>(</span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>      round_fields,</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>      extract_first_integer,</span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>      <span class="fu">integer</span>(<span class="dv">1</span>)</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>player_records <span class="ot">&lt;-</span> <span class="fu">lapply</span>(player_line_numbers, parse_player)</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>players <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>  <span class="at">player_number =</span> <span class="fu">vapply</span>(player_records, <span class="st">`</span><span class="at">[[</span><span class="st">`</span>, <span class="fu">integer</span>(<span class="dv">1</span>), <span class="st">&quot;player_number&quot;</span>),</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>  <span class="at">player_name =</span> <span class="fu">vapply</span>(player_records, <span class="st">`</span><span class="at">[[</span><span class="st">`</span>, <span class="fu">character</span>(<span class="dv">1</span>), <span class="st">&quot;player_name&quot;</span>),</span>
+<span id="cb3-51"><a href="#cb3-51" aria-hidden="true" tabindex="-1"></a>  <span class="at">state =</span> <span class="fu">vapply</span>(player_records, <span class="st">`</span><span class="at">[[</span><span class="st">`</span>, <span class="fu">character</span>(<span class="dv">1</span>), <span class="st">&quot;state&quot;</span>),</span>
+<span id="cb3-52"><a href="#cb3-52" aria-hidden="true" tabindex="-1"></a>  <span class="at">total_points =</span> <span class="fu">vapply</span>(player_records, <span class="st">`</span><span class="at">[[</span><span class="st">`</span>, <span class="fu">numeric</span>(<span class="dv">1</span>), <span class="st">&quot;total_points&quot;</span>),</span>
+<span id="cb3-53"><a href="#cb3-53" aria-hidden="true" tabindex="-1"></a>  <span class="at">pre_rating =</span> <span class="fu">vapply</span>(player_records, <span class="st">`</span><span class="at">[[</span><span class="st">`</span>, <span class="fu">integer</span>(<span class="dv">1</span>), <span class="st">&quot;pre_rating&quot;</span>),</span>
+<span id="cb3-54"><a href="#cb3-54" aria-hidden="true" tabindex="-1"></a>  <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb3-55"><a href="#cb3-55" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-56"><a href="#cb3-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-57"><a href="#cb3-57" aria-hidden="true" tabindex="-1"></a>opponents <span class="ot">&lt;-</span> <span class="fu">do.call</span>(</span>
+<span id="cb3-58"><a href="#cb3-58" aria-hidden="true" tabindex="-1"></a>  rbind,</span>
+<span id="cb3-59"><a href="#cb3-59" aria-hidden="true" tabindex="-1"></a>  <span class="fu">lapply</span>(player_records, <span class="st">`</span><span class="at">[[</span><span class="st">`</span>, <span class="st">&quot;opponents&quot;</span>)</span>
+<span id="cb3-60"><a href="#cb3-60" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb3-61"><a href="#cb3-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-62"><a href="#cb3-62" aria-hidden="true" tabindex="-1"></a><span class="fu">colnames</span>(opponents) <span class="ot">&lt;-</span> <span class="fu">paste0</span>(<span class="st">&quot;round_&quot;</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">7</span>)</span>
+<span id="cb3-63"><a href="#cb3-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-64"><a href="#cb3-64" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(players)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>  player_number         player_name state total_points pre_rating
+1             1            GARY HUA    ON          6.0       1794
+2             2     DAKSHESH DARURI    MI          6.0       1553
+3             3        ADITYA BAJAJ    MI          6.0       1384
+4             4 PATRICK H SCHILLING    MI          5.5       1716
+5             5          HANSHI ZUO    MI          5.5       1655
+6             6         HANSEN SONG    OH          5.0       1686</code></pre>
+</div>
+</div>
+<p>Codes such as <code>B</code>, <code>H</code>, <code>U</code>, and <code>X</code> do not contain a player number, so the parsing function records those rounds as missing values. They are therefore excluded from the opponent-rating calculation rather than being treated as players.</p>
+</section>
+<section id="calculate-average-opponent-ratings" class="level2">
+<h2 class="anchored" data-anchor-id="calculate-average-opponent-ratings">Calculate average opponent ratings</h2>
+<p>The named vector below connects each pair number to its pre-tournament rating. For every player, the calculation retrieves the ratings associated with the valid opponent numbers and averages them across the rounds played.</p>
+<div class="cell">
+<details open class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>rating_lookup <span class="ot">&lt;-</span> <span class="fu">setNames</span>(players<span class="sc">$</span>pre_rating, players<span class="sc">$</span>player_number)</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>valid_opponent_numbers <span class="ot">&lt;-</span> opponents[<span class="sc">!</span><span class="fu">is.na</span>(opponents)]</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>average_opponent_rating <span class="ot">&lt;-</span> <span class="fu">apply</span>(opponents, <span class="dv">1</span>, <span class="cf">function</span>(opponent_numbers) {</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  opponent_numbers <span class="ot">&lt;-</span> opponent_numbers[<span class="sc">!</span><span class="fu">is.na</span>(opponent_numbers)]</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  opponent_ratings <span class="ot">&lt;-</span> rating_lookup[<span class="fu">as.character</span>(opponent_numbers)]</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">round</span>(<span class="fu">mean</span>(opponent_ratings))</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>project1_results <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">player_name =</span> players<span class="sc">$</span>player_name,</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">state =</span> players<span class="sc">$</span>state,</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">total_points =</span> players<span class="sc">$</span>total_points,</span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">pre_rating =</span> players<span class="sc">$</span>pre_rating,</span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">average_opponent_pre_rating =</span> <span class="fu">as.integer</span>(average_opponent_rating),</span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">stringsAsFactors =</span> <span class="cn">FALSE</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(</span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">head</span>(project1_results, <span class="dv">10</span>),</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">caption =</span> <span class="st">&quot;First 10 rows of the completed tournament dataset&quot;</span></span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>First 10 rows of the completed tournament dataset</caption>
+<colgroup>
+<col style="width: 25%">
+<col style="width: 7%">
+<col style="width: 16%">
+<col style="width: 14%">
+<col style="width: 35%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">player_name</th>
+<th style="text-align: left;">state</th>
+<th style="text-align: right;">total_points</th>
+<th style="text-align: right;">pre_rating</th>
+<th style="text-align: right;">average_opponent_pre_rating</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">GARY HUA</td>
+<td style="text-align: left;">ON</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">1794</td>
+<td style="text-align: right;">1605</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">DAKSHESH DARURI</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">1553</td>
+<td style="text-align: right;">1469</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">ADITYA BAJAJ</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">6.0</td>
+<td style="text-align: right;">1384</td>
+<td style="text-align: right;">1564</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">PATRICK H SCHILLING</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">5.5</td>
+<td style="text-align: right;">1716</td>
+<td style="text-align: right;">1574</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">HANSHI ZUO</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">5.5</td>
+<td style="text-align: right;">1655</td>
+<td style="text-align: right;">1501</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">HANSEN SONG</td>
+<td style="text-align: left;">OH</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1686</td>
+<td style="text-align: right;">1519</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">GARY DEE SWATHELL</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1649</td>
+<td style="text-align: right;">1372</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">EZEKIEL HOUGHTON</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1641</td>
+<td style="text-align: right;">1468</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">STEFANO LEE</td>
+<td style="text-align: left;">ON</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1411</td>
+<td style="text-align: right;">1523</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">ANVIT RAO</td>
+<td style="text-align: left;">MI</td>
+<td style="text-align: right;">5.0</td>
+<td style="text-align: right;">1365</td>
+<td style="text-align: right;">1554</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="verify-and-export-the-result" class="level2">
+<h2 class="anchored" data-anchor-id="verify-and-export-the-result">Verify and export the result</h2>
+<p>The following checks confirm that the parser found all 64 players, that every recorded opponent maps to a player in the tournament, and that Gary Hua’s values match the example in the assignment. The final check also confirms that none of the five required output columns contains a missing value.</p>
+<div class="cell">
+<details open class="code-fold">
+<summary>Code</summary>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>gary_hua <span class="ot">&lt;-</span> project1_results[</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  project1_results<span class="sc">$</span>player_name <span class="sc">==</span> <span class="st">&quot;GARY HUA&quot;</span>,</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>]</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="fu">stopifnot</span>(</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nrow</span>(project1_results) <span class="sc">==</span> <span class="dv">64</span>,</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">identical</span>(players<span class="sc">$</span>player_number, <span class="dv">1</span><span class="sc">:</span><span class="dv">64</span>),</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">all</span>(valid_opponent_numbers <span class="sc">%in%</span> players<span class="sc">$</span>player_number),</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">nrow</span>(gary_hua) <span class="sc">==</span> <span class="dv">1</span>,</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  gary_hua<span class="sc">$</span>state <span class="sc">==</span> <span class="st">&quot;ON&quot;</span>,</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  gary_hua<span class="sc">$</span>total_points <span class="sc">==</span> <span class="dv">6</span>,</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  gary_hua<span class="sc">$</span>pre_rating <span class="sc">==</span> <span class="dv">1794</span>,</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  gary_hua<span class="sc">$</span>average_opponent_pre_rating <span class="sc">==</span> <span class="dv">1605</span>,</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="sc">!</span><span class="fu">anyNA</span>(project1_results)</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a><span class="fu">write.csv</span>(</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>  project1_results,</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;project1-results.csv&quot;</span>,</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a>  <span class="at">row.names =</span> <span class="cn">FALSE</span></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>gary_hua</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>  player_name state total_points pre_rating average_opponent_pre_rating
+1    GARY HUA    ON            6       1794                        1605</code></pre>
+</div>
+</div>
+</section>
+<section id="conclusions" class="level2">
+<h2 class="anchored" data-anchor-id="conclusions">Conclusions</h2>
+<p>The analysis successfully transformed the semi-structured tournament report into a clean dataset containing all 64 players. Gary Hua earned 6.0 points with a pre-tournament rating of 1794, and his seven opponents had an average pre-tournament rating of 1605, which matches the assignment’s expected result.</p>
+<p>The result can support further questions about tournament performance, such as whether players who faced stronger opponents earned fewer points or which players performed above expectations relative to their starting ratings. A useful extension would be to include post-tournament ratings and calculate rating changes, allowing performance in this tournament to be compared with each player’s change in USCF rating.</p>
+</section>
+<section id="data-source" class="level2">
+<h2 class="anchored" data-anchor-id="data-source">Data source</h2>
+<p>The raw tournament report was supplied by the course instructor and is stored in this repository as <a href="https://github.com/dillonleeper/DATA-607/blob/main/assignments/week04/tournament-results.txt"><code>tournament-results.txt</code></a>.</p>
 </section>
 
 </main>
