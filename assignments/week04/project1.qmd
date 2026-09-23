@@ -1,0 +1,26 @@
+---
+title: "Project 1"
+author: "Dillon Leeper"
+format:
+  html:
+    toc: true
+    code-fold: show
+    embed-resources: true
+editor: visual
+---
+
+## Introduction
+
+This project uses a semi-structured text file containing USCF chess tournament results for 64 players across seven rounds. The goal is to use R to transform the raw tournament data into a clean CSV containing each player's name, state, total points, pre-tournament rating, and average pre-tournament rating of their opponents.
+
+**Data source:** [Instructor-provided tournament results hosted on GitHub](https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week04/tournament-results.txt)
+
+## Approach
+
+I will begin by reading the raw text file into R and identifying the two lines associated with each player. From the first line, I will extract the player number, name, total points, and opponent numbers from the seven round fields. From the second line, I will extract the player's state and pre-tournament Elo rating.
+
+Next, I will create a lookup table that connects each player number to that player's pre-tournament rating. I will use the opponent numbers from each round to retrieve the corresponding ratings and calculate each player's average opponent rating. Rounds without an actual opponent, including byes and other entries marked `B`, `H`, `U`, or `X`, will be excluded from the calculation.
+
+One expected challenge is that some ratings contain provisional-game indicators, such as `1641P17`. I will extract only the numerical rating portion. I will also account for inconsistent spacing in the text file by using patterns rather than relying entirely on fixed character positions.
+
+To verify the transformation, I will confirm that Gary Hua's calculated average opponent rating rounds to 1605, as shown in the assignment instructions. I will also check that the completed dataset contains one row for each of the 64 players before exporting it as a CSV file. The raw data is stored at a publicly accessible GitHub URL so that the analysis can run without relying on a local file path.
