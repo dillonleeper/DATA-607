@@ -2251,8 +2251,8 @@ vertical-align: -.125em;
 
 <section id="introduction" class="level2">
 <h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
-<p>This project uses a semi-structured text file containing USCF chess tournament results for 64 players across seven rounds. The goal is to use R to transform the raw tournament data into a clean CSV containing each player’s name, state, total points, pre-tournament rating, and average pre-tournament rating of their opponents.</p>
-<p><strong>Data source:</strong> <a href="https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week04/tournament-results.txt">Instructor-provided tournament results hosted on GitHub</a></p>
+<p>This project uses a text file containing USCF chess tournament results for 64 players across seven rounds. The goal is to use R to transform the raw tournament data into a clean CSV containing each player’s name, state, total points, pre-tournament rating, and average pre-tournament rating of their opponents.</p>
+<p><strong>Data source:</strong> <a href="https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week04/tournament-results.txt">Tournament results hosted on GitHub</a></p>
 </section>
 <section id="approach" class="level2">
 <h2 class="anchored" data-anchor-id="approach">Approach</h2>
@@ -2263,7 +2263,7 @@ vertical-align: -.125em;
 </section>
 <section id="load-the-data" class="level2">
 <h2 class="anchored" data-anchor-id="load-the-data">Load the data</h2>
-<p>The analysis reads the instructor-provided tournament report from its public GitHub URL. This makes the document reproducible without requiring a file stored on my computer.</p>
+<p>The analysis reads the tournament report from its public GitHub URL. This makes the document reproducible without requiring a file stored on my computer.</p>
 <div class="cell">
 <details open class="code-fold">
 <summary>Code</summary>
@@ -2284,6 +2284,8 @@ vertical-align: -.125em;
 <section id="parse-the-player-records" class="level2">
 <h2 class="anchored" data-anchor-id="parse-the-player-records">Parse the player records</h2>
 <p>Each player occupies two lines in the source report. A player line begins with a numeric pair number, and the following line contains the player’s state and rating information. Splitting the lines at the vertical bars makes it possible to extract the fields without depending on exact character positions.</p>
+<p>The two lines contain different but aligned information. For example, <code>W 39</code> on Gary Hua’s first line means that he won against the player whose pair number is 39. The <code>W</code> directly below that result on the second line means that Gary played with the White pieces; a <code>B</code> in that position means Black. The first line therefore provides the player’s pair number, name, total points, results, and opponent numbers, while the second provides the state, USCF ID, rating information, and color played in each round.</p>
+<p>The pattern <code>^\\s*[0-9]+\\s*\\|</code> identifies the beginning of a player record. In plain English, it looks for a line that starts with optional blank spaces, followed by one or more digits, more optional spaces, and a vertical bar. This selects lines beginning like <code>1 | GARY HUA |</code> while ignoring headings and divider lines. Because the report follows a consistent format, the code can then retrieve the matching player’s detail line from the line immediately below it.</p>
 <div class="cell">
 <details open class="code-fold">
 <summary>Code</summary>
@@ -2362,11 +2364,13 @@ vertical-align: -.125em;
 6             6         HANSEN SONG    OH          5.0       1686</code></pre>
 </div>
 </div>
-<p>Codes such as <code>B</code>, <code>H</code>, <code>U</code>, and <code>X</code> do not contain a player number, so the parsing function records those rounds as missing values. They are therefore excluded from the opponent-rating calculation rather than being treated as players.</p>
+<p>The helper function <code>parse_player()</code> organizes one player’s two-line record. <code>lapply()</code> then runs that same function for every player record found in the report, ensuring that all 64 players are processed consistently. Next, <code>vapply()</code> extracts one expected field, such as the name or rating, from every parsed record and verifies the type of the returned values. Finally, <code>do.call(rbind, ...)</code> stacks the seven opponent-number vectors into a matrix with one row per player and one column per round. The opponent-to-rating lookup occurs later; <code>vapply()</code> itself is not performing that lookup.</p>
+<p>Codes such as <code>B</code>, <code>H</code>, <code>U</code>, and <code>X</code> represent rounds without a normal numbered opponent, including byes, unplayed rounds, or forfeits. Because these entries do not provide an opponent whose rating can be averaged, the parsing function records them as missing values and excludes them from the opponent-rating calculation. They are not converted to zero because doing so would incorrectly reduce the average.</p>
+<p>Some pre-tournament ratings include provisional-status information. For example, <code>1641P17</code> means that the numeric rating is 1641 and that it is provisional based on 17 games. The code extracts <code>1641</code> because that is the portion needed for arithmetic; attempting to convert the complete text value to a number would produce a missing value or warning.</p>
 </section>
 <section id="calculate-average-opponent-ratings" class="level2">
 <h2 class="anchored" data-anchor-id="calculate-average-opponent-ratings">Calculate average opponent ratings</h2>
-<p>The named vector below connects each pair number to its pre-tournament rating. For every player, the calculation retrieves the ratings associated with the valid opponent numbers and averages them across the rounds played.</p>
+<p>The named vector below connects each pair number to its pre-tournament rating. It acts like a dictionary: a pair number is the key, and that player’s rating is the corresponding value. For Gary Hua, the opponent numbers <code>39, 21, 18, 14, 7, 12, 4</code> are used to retrieve only those seven players’ ratings. The calculation then takes their mean and rounds it to produce Gary’s average opponent pre-rating of 1605.</p>
 <div class="cell">
 <details open class="code-fold">
 <summary>Code</summary>
@@ -2532,7 +2536,7 @@ vertical-align: -.125em;
 </section>
 <section id="data-source" class="level2">
 <h2 class="anchored" data-anchor-id="data-source">Data source</h2>
-<p>The raw tournament report was supplied by the course instructor and is stored in this repository as <a href="https://github.com/dillonleeper/DATA-607/blob/main/assignments/week04/tournament-results.txt"><code>tournament-results.txt</code></a>.</p>
+<p>The raw tournament report was supplied by the course instructor and is stored in this repository as <a href="https://raw.githubusercontent.com/dillonleeper/DATA-607/refs/heads/main/assignments/week04/tournament-results.txt"><code>tournament-results.txt</code></a>.</p>
 </section>
 
 </main>
