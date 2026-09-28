@@ -13,7 +13,7 @@ editor: visual
 
 This project uses a text file containing USCF chess tournament results for 64 players across seven rounds. The goal is to use R to transform the raw tournament data into a clean CSV containing each player's name, state, total points, pre-tournament rating, and average pre-tournament rating of their opponents.
 
-**Data source:** [Tournament results hosted on GitHub](https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week04/tournament-results.txt)
+**Data source:** [Tournament results hosted on GitHub](https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week04/tournament-results.txt){target="_blank"}
 
 ## Approach
 
@@ -191,7 +191,7 @@ write.csv(
 gary_hua
 ```
 
-The completed dataset is available on GitHub: [`project1-results.csv`](https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week04/project1-results.csv).
+The completed dataset is available on GitHub: [`project1-results.csv`](https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week04/project1-results.csv){target="_blank"}.
 
 ## Conclusions
 
@@ -201,4 +201,4 @@ The result can support further questions about tournament performance, such as w
 
 ## Data source
 
-The raw tournament report was supplied by the course instructor and is stored in this repository as [`tournament-results.txt`](https://raw.githubusercontent.com/dillonleeper/DATA-607/refs/heads/main/assignments/week04/tournament-results.txt).
+The raw tournament report was supplied by the course instructor and is stored in this repository as [`tournament-results.txt`](https://raw.githubusercontent.com/dillonleeper/DATA-607/refs/heads/main/assignments/week04/tournament-results.txt){target="_blank"}.
