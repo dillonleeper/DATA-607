@@ -49,6 +49,6 @@ Fung, K. (2013). *Numbersense: How to Use Big Data to Your Advantage*. McGraw Hi
 
 ## AI Disclosure and Citation
 
-Claude (Sonnet 5, accessed through Claude for Cowork) helped draft this Approach document, including identifying the source dataset from the course PDF, explaining why the blank airline-label cells need to be filled with code before pivoting, and outlining the pivot/compare/explain plan above based on the assignment's grading rubric.
+Claude (Sonnet 5, accessed through Claude for Cowork) helped draft this Approach document, including explaining why the blank airline-label cells need to be filled with code before pivoting, and outlining the pivot/compare/explain plan above based on the assignment's grading rubric.
 
 Anthropic. (2026). *Claude (Sonnet 5)* \[Large language model\]. <https://claude.ai/>. Accessed October 1, 2026.
