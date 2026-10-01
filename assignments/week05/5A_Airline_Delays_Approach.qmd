@@ -1,0 +1,54 @@
+---
+title: "Assignment 5A: Airline Delays — Approach"
+subtitle: "DATA 607 · Week 5"
+author: "Dillon Leeper"
+date: "2026-10-01"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-tools: true
+    df-print: paged
+    smooth-scroll: true
+    embed-resources: true
+
+execute:
+  warning: false
+  message: false
+
+editor: visual
+---
+
+## Overview
+
+This assignment uses the Alaska vs. AM West arrival-delay table from Kaiser Fung's *Numbersense* (2013), which compares on-time and delayed flight counts for two airlines across five destination cities: Los Angeles, Phoenix, San Diego, San Francisco, and Seattle. The table is presented in a wide, presentation-friendly format that isn't analysis-ready, which makes it a good candidate for practicing `tidyr` and `dplyr` transformations.
+
+## Approach
+
+I plan to recreate the source table as a CSV, keeping the same wide structure as the original: one row per airline/status combination, with a column for each destination city. In the original table, each airline's name is only printed once, next to its "on time" row, with the "delayed" row below it left blank under that same column. I'll preserve that same blank-cell structure in my CSV rather than "fixing" it ahead of time, since filling it back in with code is part of the assignment.
+
+Once the CSV is loaded into R, my plan is:
+
+1. **Fill the missing airline labels.** Use `tidyr::fill()` to carry the airline name down into the blank cell beneath it, so every row is fully labeled before any reshaping happens.
+2. **Reshape wide to long.** Use `tidyr::pivot_longer()` to turn the five city columns into two columns — `city` and `count` — so each row represents a single (airline, status, city) observation.
+3. **Calculate percentages, not just counts.** Use `dplyr::group_by()` and `summarize()` to get each airline's overall percentage of delayed flights, then again grouped by city, since the rubric specifically asks for rates rather than raw totals.
+4. **Compare overall vs. city-by-city.** Build one table/chart comparing the two airlines' overall delay percentage, and a second comparing delay percentage city-by-city.
+5. **Explain the discrepancy.** I expect the city-by-city comparison and the overall comparison to tell different stories. This dataset is a well-known example of Simpson's Paradox: one airline can have a *better* delay rate in every single city, while still having a *worse* overall delay rate, if its flight volume is weighted more heavily toward cities that are harder to fly into on time (weather, traffic, airport congestion, etc.). I'll confirm whether that's actually what's happening once I run the numbers, rather than assuming it in advance.
+
+## Deliverables
+
+- A CSV recreating the original wide-format table, hosted in my GitHub repo.
+- An R Markdown / Quarto file with the full tidy-and-transform code, narrative explanations, and the two comparisons described above.
+- The rendered document published to RPubs, with both the GitHub `.qmd`/`.Rmd` URL and the RPubs URL included in my submission.
+
+## Data source
+
+Fung, K. (2013). *Numbersense: How to Use Big Data to Your Advantage*. McGraw Hill.
+
+## AI Disclosure and Citation
+
+Claude (Sonnet 5, accessed through Claude for Cowork) helped draft this Approach document, including identifying the source dataset from the course PDF, explaining why the blank airline-label cells need to be filled with code before pivoting, and outlining the pivot/compare/explain plan above based on the assignment's grading rubric.
+
+Anthropic. (2026). *Claude (Sonnet 5)* \[Large language model\]. <https://claude.ai/>. Accessed October 1, 2026.
