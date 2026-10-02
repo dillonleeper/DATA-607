@@ -1,0 +1,65 @@
+---
+title: "Assignment 5B: Chess ELO Calculations — Approach"
+subtitle: "DATA 607 · Week 5"
+author: "Dillon Leeper"
+date: "2026-10-01"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-tools: true
+    df-print: paged
+    smooth-scroll: true
+    embed-resources: true
+
+execute:
+  warning: false
+  message: false
+
+editor: visual
+---
+
+## Overview
+
+This assignment builds on the Project 1 tournament data: the same 64-player USCF tournament report (`tournament-results.txt`) I already parsed for Project 1 to get each player's pre-tournament rating and average opponent rating. This time, instead of just averaging opponent ratings, I need to use each player's actual round-by-round opponents to calculate an **expected score** for the tournament, then compare that to their **actual score** to see who over- and underperformed.
+
+## Approach
+
+I already have most of the hard parsing work done from Project 1 — the two-line-per-player structure, the regex for pulling pair numbers and ratings, and the rating lookup table keyed by pair number. For this assignment I need to go back to that parsing step and pull one more piece of information I didn't need last time: the actual round-by-round result (win/loss/draw), not just the opponent's pair number.
+
+1.  **Re-parse the round results.** Each player's first line has entries like `W 39`, `D 12`, or `L 4` for each round — a letter for the result plus the opponent's pair number. For Project 1 I only extracted the number. This time I need the letter too, so I can score each individual game.
+
+2.  **Score each game numerically.** Convert W/D/L into points: a win is 1, a draw is 0.5, a loss is 0. Rounds with no real opponent (byes, coded as `B`, `H`, `U`, or `X`) get excluded the same way they were excluded from the average-opponent-rating calculation in Project 1 — they're not real games, so they shouldn't count toward expected score either.
+
+3.  **Calculate expected score per game.** For a player with pre-tournament rating $R_A$ facing an opponent rated $R_B$, the standard Elo expected-score formula is:
+
+    $$
+    E_A = \frac{1}{1 + 10^{(R_B - R_A)/400}}
+    $$
+
+    This gives a value between 0 and 1 representing the probability-weighted expected result of that single game. I'll calculate this for every real game in the tournament, using the opponent's pre-tournament rating from the same rating lookup table built in Project 1.
+
+4.  **Sum expected score across all rounds.** Add up each player's seven (or fewer, accounting for byes) per-game expected scores to get their total expected score for the tournament — the number the assignment example gives as something like 4.3.
+
+5.  **Compare to actual score.** Subtract expected score from actual total points (already calculated in Project 1 as `total_points`) to get each player's performance differential.
+
+6.  **Rank over/underperformers.** Sort players by that differential. The five with the highest positive differential are the biggest overperformers relative to expectation; the five with the most negative differential are the biggest underperformers.
+
+## Deliverables
+
+- An R Markdown / Quarto file with the full expected-score calculation, built on top of the Project 1 parsing code.
+- A table of all 64 players' actual score, expected score, and differential.
+- The top five overperforming and top five underperforming players, clearly listed.
+- A citation for the Elo expected-score formula used.
+
+## Formula source
+
+Elo, A. E. (1978). *The Rating of Chess Players, Past and Present*. Arco Publishing. The expected-score formula above is the standard Elo rating system formula used by FIDE and the USCF.
+
+## AI Disclosure and Citation
+
+Claude (Sonnet 5, accessed through Claude for Cowork) helped draft this Approach document, including outlining the plan to reuse the Project 1 parsing logic, extract round results (not just opponent numbers), apply the Elo expected-score formula, and rank players by the difference between actual and expected score.
+
+Anthropic. (2026). *Claude (Sonnet 5)* \[Large language model\]. <https://claude.ai/>. Accessed October 1, 2026.
