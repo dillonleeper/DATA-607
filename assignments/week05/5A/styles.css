@@ -99,9 +99,10 @@ table {
   width: 100%;
   margin: 1.2rem 0;
 }
-th {
-  background-color: var(--accent);
-  color: #ffffff;
+th,
+table.table > thead > tr > th {
+  background-color: var(--accent) !important;   /* !important beats Quarto's built-in table style */
+  color: #ffffff !important;
   text-align: left;
   padding: 0.55rem 0.85rem;
 }
@@ -139,4 +140,9 @@ hr {
 /* Math display shouldn't clip on narrow viewports */
 .katex-display, .math.display {
   overflow-x: auto;
+}
+
+/* Paged data tables: keep the column-type labels (<chr>, <int>) readable on the blue header */
+.pagedtable-header-type {
+  color: #d6e4f0 !important;
 }
