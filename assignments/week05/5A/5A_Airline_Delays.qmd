@@ -29,11 +29,11 @@ This assignment uses the airline arrival data from Kaiser Fung's *Numbersense*: 
 
 ## Approach
 
-1. Recreate the table as a CSV, keeping the original's messy layout.
-2. Load it into R and fill in the blank cells with code.
-3. Reshape it from wide to long, then partway back to wide to calculate delay rates.
-4. Compare the airlines overall, then city by city.
-5. Explain why those two comparisons disagree.
+1.  Recreate the table as a CSV, keeping the original's messy layout.
+2.  Load it into R and fill in the blank cells with code.
+3.  Reshape it from wide to long, then partway back to wide to calculate delay rates.
+4.  Compare the airlines overall, then city by city.
+5.  Explain why those two comparisons disagree.
 
 ## Load the data
 
@@ -354,6 +354,6 @@ Fung, K. (2013). *Numbersense: How to Use Big Data to Your Advantage*. McGraw Hi
 
 ## AI Disclosure and Citation
 
-Claude (Opus 5.5, accessed through claude.ai) helped with this assignment, including recreating the CSV in the original layout, writing the `fill()` and pivot steps, the percentage tables and charts, and the Simpson's Paradox explanation. I also used Claude to walk through each step of the code until I understood it, to revise the write-up, to add the route-mix chart, and to upload the CSV to my GitHub repo.
+Claude (Opus 5.5, accessed through claude.ai) helped with this assignment, including recreating the CSV in the original layout, writing the code (the fill() and pivot steps, tables, and charts), drafting and revising the write-up and the Simpson's Paradox explanation, and uploading the CSV to my GitHub repo.
 
 Anthropic. (2026). *Claude (Opus 5.5)* \[Large language model\]. <https://claude.ai/>. Accessed October 3–4, 2026.
