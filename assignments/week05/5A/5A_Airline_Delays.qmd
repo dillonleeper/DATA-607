@@ -319,40 +319,6 @@ mix |>
 
 Since the overall rate is weighted by flight volume, each airline's overall number ends up close to the rate of the city it flies to most. AM WEST's many flights into Phoenix pull its overall delay rate down, and ALASKA's heavy schedule into Seattle pulls its overall rate up. The overall comparison ends up measuring *where* each airline flies more than *how well* it flies.
 
-```{r}
-#| label: fig-bubbles
-#| fig-width: 8
-#| fig-height: 4.5
-
-airlines_city |>
-  mutate(city = factor(city, levels = city_order)) |>
-  ggplot(aes(x = city, y = delay_rate, color = airline)) +
-  geom_hline(
-    data = overall,
-    aes(yintercept = delay_rate, color = airline),
-    linetype = "dashed", linewidth = 0.7, show.legend = FALSE
-  ) +
-  geom_point(aes(size = total), alpha = 0.75,
-             position = position_dodge(width = 0.55)) +
-  annotate("text", x = 5.55, y = overall$delay_rate,
-           label = paste(overall$airline, "overall:", percent(overall$delay_rate, accuracy = 0.1)),
-           hjust = 1, vjust = c(-0.7, 1.7), size = 3.3, color = "#3d434c") +
-  scale_color_manual(values = airline_colors) +
-  scale_size_area(max_size = 18, breaks = c(250, 1000, 5000), labels = comma) +
-  scale_y_continuous(labels = percent, limits = c(0, 0.32)) +
-  labs(
-    title = "Delay rate by city, sized by number of flights",
-    subtitle = "Cities ordered from fewest delays to most. Dashed lines show each airline's overall rate.",
-    x = NULL, y = "Share of flights delayed", color = NULL, size = "Flights"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(legend.position = "right", panel.grid.minor = element_blank(),
-        panel.grid.major.x = element_blank()) +
-  guides(color = guide_legend(override.aes = list(size = 5), order = 1))
-```
-
-Each dashed line sits close to that airline's biggest bubble: AM WEST's is pulled down toward Phoenix, and ALASKA's is pulled up toward Seattle. But in every city, ALASKA's bubble sits lower than AM WEST's.
-
 As a final check, here's what AM WEST's overall delay rate would be if it flew ALASKA's exact schedule (the same number of flights to each city) with its own delay rate in each city:
 
 ```{r}
@@ -388,6 +354,6 @@ Fung, K. (2013). *Numbersense: How to Use Big Data to Your Advantage*. McGraw Hi
 
 ## AI Disclosure and Citation
 
-Claude (Opus 5.5, accessed through claude.ai) helped with this assignment, including recreating the CSV in the original layout, writing the `fill()` and pivot steps, the percentage tables and charts, and the Simpson's Paradox explanation. I also used Claude to walk through each step of the code until I understood it, to revise the write-up, to add the route-mix and bubble charts, and to upload the CSV to my GitHub repo.
+Claude (Opus 5.5, accessed through claude.ai) helped with this assignment, including recreating the CSV in the original layout, writing the `fill()` and pivot steps, the percentage tables and charts, and the Simpson's Paradox explanation. I also used Claude to walk through each step of the code until I understood it, to revise the write-up, to add the route-mix chart, and to upload the CSV to my GitHub repo.
 
 Anthropic. (2026). *Claude (Opus 5.5)* \[Large language model\]. <https://claude.ai/>. Accessed October 3–4, 2026.
