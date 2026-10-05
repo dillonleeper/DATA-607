@@ -27,21 +27,17 @@ editor: visual
 
 This assignment uses the airline arrival data from Kaiser Fung's *Numbersense*: on-time and delayed flight counts for two airlines, Alaska and AM West, across five destination cities. The table is laid out "wide," which is easy for a person to read but awkward for R to analyze. The goal is to recreate it as a CSV in the same layout, tidy it with `tidyr` and `dplyr`, and then compare the two airlines' delay rates overall and city by city.
 
-## How I worked through this
+## Approach
 
-I'll be honest about my process: I did this one kind of backwards. I got the code working first, and then went back through it one step at a time until I could explain what every piece was doing and why. Along the way I kept running into questions, like "how does R know which airline goes in that blank cell?" and "where did all these extra rows come from?" Answering those is what actually made it click for me, so I left them in this write-up. Each section below has the code, what it does, and the question I had to work out to understand it.
-
-The overall plan:
-
-1. Recreate the table as a CSV, keeping the original's messy layout on purpose.
-2. Load it into R and clean up the blank cells with code.
-3. Reshape it from wide to long, then partway back to wide so I can calculate delay rates.
+1. Recreate the table as a CSV, keeping the original's messy layout.
+2. Load it into R and fill in the blank cells with code.
+3. Reshape it from wide to long, then partway back to wide to calculate delay rates.
 4. Compare the airlines overall, then city by city.
-5. Figure out why those two comparisons disagree.
+5. Explain why those two comparisons disagree.
 
-## The data
+## Load the data
 
-Each airline's name only appears once in the original table, on its "on time" row, and the "delayed" row underneath is left blank. There's also an empty row separating the two airlines. I kept both of those quirks in the CSV instead of fixing them by hand, so the cleanup happens in code where anyone can see it and rerun it.
+Each airline's name only appears once in the original table, on its "on time" row, and the "delayed" row underneath is left blank. There's also an empty row separating the two airlines. I kept both of those quirks in the CSV so the cleanup happens in code instead of by hand.
 
 ```{r}
 #| label: setup
@@ -73,24 +69,22 @@ raw <- tryCatch(
 raw
 ```
 
-This is the table exactly as I entered it. The header row has two blank cells, the "delayed" rows have no airline name, and row 4 is completely empty. I read it with `col_names = FALSE`, which tells R not to treat the first row as column names. That way the header row comes in as regular data and I can deal with the two blank header cells myself.
+This is the table exactly as entered: the header row has two blank cells, the "delayed" rows have no airline name, and row 4 is completely empty. I read it with `col_names = FALSE` so the header row comes in as regular data, which makes the two blank header cells easy to handle. Because that row contains words, R reads every column as text for now, including the flight counts.
 
-One side effect I didn't expect at first: because that first row has words in it, R reads **every** column as text, even the flight counts. That gets fixed in the next step.
+## Tidy the data
 
-## Tidying the data
-
-### Fixing the header and filling in the airline names
+### Fix the header and fill in the airline names
 
 ```{r}
 #| label: fill-missing
 
-# Use the first row as column names, and name the two blank header cells
+# Save the first row as the column names, and name the two blank cells
 header <- raw |> slice(1) |> unlist() |> as.character()
 header[1:2] <- c("airline", "status")
 
 airlines_wide <- raw |>
-  slice(-1) |>                                      # drop the header row
-  set_names(header) |>                              # apply the new names
+  slice(-1) |>                                      # drop the row holding the header words
+  set_names(header) |>                              # use the saved words as column names
   filter(!if_all(everything(), is.na)) |>           # drop the empty separator row
   fill(airline, .direction = "down") |>             # carry each airline name down
   mutate(across(-c(airline, status), as.integer))   # turn the counts back into numbers
@@ -98,25 +92,9 @@ airlines_wide <- raw |>
 airlines_wide
 ```
 
-Going line by line:
-
-- `filter(!if_all(everything(), is.na))` asks, for each row, "is every cell blank?" and keeps only the rows where the answer is no. That removes the empty separator row.
-- `fill()` copies the last non-blank value down into any blank cell below it, so the "delayed" row under ALASKA becomes ALASKA, and the same for AM WEST.
-- `as.integer` converts the five city columns back from text into whole numbers.
-
-::: {.callout-note}
-## The question I had: How can we be sure `fill()` used the right airline?
-
-It turns out `fill()` doesn't know anything about airlines. It just copies whatever is in the row above. It works because of how the data is structured: each airline's "delayed" row sits directly under its own "on time" row, and the CSV keeps the book's row order. If the rows ever got shuffled or sorted, `fill()` would quietly give the wrong names. So I added a quick check: each airline should have exactly one "on time" row and one "delayed" row.
-:::
-
-```{r}
-#| label: check-fill
-
-airlines_wide |> count(airline, status)
-```
-
-Four rows, each with `n = 1`, so every row landed with the right airline.
+- `filter(!if_all(everything(), is.na))` removes any row where every cell is blank, which drops the separator row no matter where it sits.
+- `fill()` copies the last non-blank value down into the blank cell below it, so each "delayed" row picks up its airline's name. This works because each "delayed" row sits directly under its own airline's "on time" row.
+- `as.integer` turns the five city columns back into whole numbers.
 
 ### Wide to long
 
@@ -134,34 +112,18 @@ airlines_long <- airlines_wide |>
 airlines_long
 ```
 
-The way I think about `pivot_longer()`:
-
-- **`cols`** picks which columns get stacked. Here that's everything except `airline` and `status`, which leaves the five cities.
-- **`names_to`** is where the **headers** of those columns go (Los Angeles, Phoenix, and so on).
-- **`values_to`** is where the **data inside the cells** goes (the flight counts).
-
-The test I used for deciding which columns to stack: the five city headers can all go under one word, "cities." When column headers are really values of something, that's a sign they belong in their own column instead.
-
-::: {.callout-note}
-## The question I had: Where did all these rows come from?
-
-I thought we only had four rows of data. But those four rows weren't four flights. Each one held five numbers, one per city. `pivot_longer()` splits each wide row into five skinny rows, so 4 rows × 5 cities = `r nrow(airlines_long)` rows. It's the same 20 numbers as before, just one per row. Nothing was added.
-:::
-
-I also used `relocate()` to put the columns in the order airline, city, status, flights. R doesn't care about column order, but this reads better to me because it goes from the broadest grouping to the narrowest and ends with the number: "Alaska, in Los Angeles, on time: 497 flights." It also matches the comparison I'm making later, which is one airline in one city.
-
-This long shape is what R works best with. A data frame is basically a set of columns, and most R functions grab one whole column and work on all of it at once. In the wide version, the flight counts were spread across five columns. Now they're all in one.
+`pivot_longer()` stacks the five city columns into two: `city` holds the old column headers, and `flights` holds the numbers that were in the cells. Each wide row becomes five rows, one per city, so 4 rows × 5 cities = `r nrow(airlines_long)` rows. It's the same 20 numbers as before, now one per row. I used `relocate()` to order the columns from broadest to narrowest (airline, city, status, flights), which makes each row read like a sentence: "Alaska, in Los Angeles, on time: 497 flights."
 
 ### Back to wide, partway
 
-To get a delay rate, I need the "on time" and "delayed" counts for the same airline and city **in the same row**, so I can divide them. In the long version they're in separate rows. So I pivot partway back:
+To calculate a delay rate, the on-time and delayed counts for the same airline and city need to be in the same row so they can be divided.
 
 ```{r}
 #| label: pivot-wider
 
 airlines_city <- airlines_long |>
   pivot_wider(names_from = status, values_from = flights) |>
-  rename(on_time = `on time`) |>       # the space in the name is awkward to type
+  rename(on_time = `on time`) |>
   mutate(
     total = on_time + delayed,
     delay_rate = delayed / total
@@ -170,9 +132,7 @@ airlines_city <- airlines_long |>
 airlines_city
 ```
 
-`pivot_wider()` spreads the two status values back out into an `on time` column and a `delayed` column. Then `mutate()` adds two new columns: `total` adds them together, and `delay_rate` is delayed divided by total. For example, Alaska in Los Angeles is 62 ÷ 559 = 11.1%.
-
-So the data went through three shapes: wide (how the book printed it), long (good for grouping and charts), and a little wider again (good for row-by-row math). I learned that you don't pick one shape forever. You switch to whichever one makes the next step easiest.
+`pivot_wider()` spreads the status values back into an `on time` column and a `delayed` column. Then `mutate()` adds the total number of flights and the delay rate (delayed ÷ total). For example, Alaska in Los Angeles is 62 ÷ 559 = 11.1%.
 
 ## Analysis
 
@@ -200,7 +160,7 @@ overall |>
   )
 ```
 
-One detail that turned out to matter a lot: this adds up all of each airline's delayed flights and all of its total flights, and **then** divides. It does not average the five city percentages. That means a city with a lot of flights counts much more toward the overall number than a city with only a few.
+This adds up each airline's delayed and total flights across all five cities, then divides. Because it works from totals rather than averaging the five city percentages, cities with more flights count more toward the overall rate.
 
 ```{r}
 #| label: fig-overall
@@ -225,7 +185,7 @@ ak <- overall |> filter(airline == "ALASKA")
 aw <- overall |> filter(airline == "AM WEST")
 ```
 
-Looking at all flights together, **AM WEST comes out ahead**. `r percent(aw$delay_rate, accuracy = 0.1)` of AM WEST's flights were delayed, compared to `r percent(ak$delay_rate, accuracy = 0.1)` for ALASKA. AM WEST also flew almost twice as many flights (`r comma(aw$total)` vs. `r comma(ak$total)`). Based on this table alone, you'd say AM WEST is the more reliable airline.
+Looking at all flights together, **AM WEST comes out ahead**. `r percent(aw$delay_rate, accuracy = 0.1)` of AM WEST's flights were delayed, compared to `r percent(ak$delay_rate, accuracy = 0.1)` for ALASKA. AM WEST also flew almost twice as many flights (`r comma(aw$total)` vs. `r comma(ak$total)`).
 
 ### Delay rate by airline and city
 
@@ -248,11 +208,7 @@ airlines_city |>
   )
 ```
 
-::: {.callout-note}
-## The question I had: Why does the order inside `mutate()` matter?
-
-Once `percent()` turns a number like 0.086 into the text "8.6%", R stops treating it as a number. If you compare text, R compares it alphabetically, one character at a time. That would actually break on this data. In San Diego, Alaska is at "8.6%" and AM WEST is at "14.5%". As text, R sees "1" coming before "8" and decides "14.5%" is smaller, which would wrongly name AM WEST the better airline. So the comparison has to happen first, while the rates are still numbers, and the formatting comes last.
-:::
+The comparison runs before the formatting on purpose. Once `percent()` turns 0.086 into the text "8.6%", R compares it alphabetically instead of numerically, and would rank "14.5%" below "8.6%".
 
 ```{r}
 #| label: fig-by-city
@@ -281,13 +237,7 @@ City by city, the result flips: **ALASKA has the lower delay rate in all five ci
 
 ## The discrepancy
 
-### What's going on
-
-The two comparisons contradict each other. Overall, AM WEST looks better. But in every single city, ALASKA has the lower delay rate. This was the part I had the hardest time with: how can an airline be worse everywhere and still better overall?
-
-### Why it happens
-
-The answer is in where each airline actually flies:
+The two comparisons contradict each other. Overall, AM WEST looks better, but in every single city, ALASKA has the lower delay rate. The explanation is in where each airline flies.
 
 ```{r}
 #| label: flight-mix
@@ -333,8 +283,6 @@ city_order <- airlines_city |>
 - About `r percent(aw_phx$share, accuracy = 1)` of AM WEST's flights go to **Phoenix**, which has the lowest delay rate of any city for both airlines (AM WEST is at `r percent(aw_phx$delay_rate, accuracy = 0.1)` there).
 - About `r percent(ak_sea$share, accuracy = 1)` of ALASKA's flights go to **Seattle**, where delays are much more common (`r percent(ak_sea$delay_rate, accuracy = 0.1)` for ALASKA).
 
-Seeing it as a picture made it a lot clearer for me. Each bar is one airline's whole schedule, split up by where the flights go. The cities are colored from lightest (fewest delays) to darkest (most delays).
-
 ```{r}
 #| label: fig-route-mix
 #| fig-width: 8
@@ -369,11 +317,7 @@ mix |>
         plot.margin = margin(5, 18, 5, 5))
 ```
 
-AM WEST's bar is almost entirely the lightest color. ALASKA's is mostly the darker end.
-
-Since the overall rate is weighted by flight volume, each airline's overall number ends up close to the rate of the city it flies to most. AM WEST does a lot of easy flights into Phoenix, and those pull its overall delay rate down. ALASKA's heavy schedule into Seattle pulls its overall rate up. So the overall comparison is really "AM WEST, mostly in easy Phoenix" against "ALASKA, mostly in hard Seattle." That's a comparison of routes, not airlines.
-
-This chart shows that pull directly. Each bubble is one airline in one city, and the bigger the bubble, the more flights it represents. The dashed lines are each airline's overall delay rate.
+Since the overall rate is weighted by flight volume, each airline's overall number ends up close to the rate of the city it flies to most. AM WEST's many flights into Phoenix pull its overall delay rate down, and ALASKA's heavy schedule into Seattle pulls its overall rate up. The overall comparison ends up measuring *where* each airline flies more than *how well* it flies.
 
 ```{r}
 #| label: fig-bubbles
@@ -407,15 +351,9 @@ airlines_city |>
   guides(color = guide_legend(override.aes = list(size = 5), order = 1))
 ```
 
-Each dashed line sits close to that airline's biggest bubble. AM WEST's line is pulled down toward its huge Phoenix bubble, and ALASKA's is pulled up toward Seattle. But in every single city, the blue bubble sits lower than the orange one.
+Each dashed line sits close to that airline's biggest bubble: AM WEST's is pulled down toward Phoenix, and ALASKA's is pulled up toward Seattle. But in every city, ALASKA's bubble sits lower than AM WEST's.
 
-::: {.callout-tip}
-## How I finally got it
-
-The way I finally got my head around it was to think of two kids shooting baskets. One is better at both close shots and far shots, but takes mostly far shots. The other takes mostly close shots. At the end of the day, the second kid has made more baskets and looks like the better shooter, even though they're worse at every kind of shot. ALASKA is the first kid. AM WEST is the second.
-:::
-
-To check that the route mix really is the cause, I asked one more question: what would AM WEST's overall delay rate be if it flew ALASKA's exact schedule, the same number of flights to each city, but kept its own delay rate in each city?
+As a final check, here's what AM WEST's overall delay rate would be if it flew ALASKA's exact schedule (the same number of flights to each city) with its own delay rate in each city:
 
 ```{r}
 #| label: what-if
@@ -432,21 +370,17 @@ what_if <- airlines_city |>
 what_if
 ```
 
-On ALASKA's routes, AM WEST's overall delay rate would be about `r percent(what_if$aw_on_alaska_routes, accuracy = 0.1)`, much worse than ALASKA's actual `r percent(ak$delay_rate, accuracy = 0.1)`. Once both airlines are measured on the same mix of cities, ALASKA is clearly better. AM WEST's overall advantage comes entirely from flying to easier places.
+On ALASKA's routes, AM WEST's overall delay rate would be about `r percent(what_if$aw_on_alaska_routes, accuracy = 0.1)`, well above ALASKA's actual `r percent(ak$delay_rate, accuracy = 0.1)`. AM WEST's overall advantage comes from flying to easier places, not from flying better.
 
-This is called **Simpson's Paradox**: a pattern that holds in every group reverses when the groups are combined. It needs two things at the same time. The groups have to be mixed in very different proportions (Phoenix-heavy vs. Seattle-heavy), and the groups themselves have to be very different from each other (Phoenix is easy, Seattle and San Francisco are hard). If every city had the same delay rate, the route mix wouldn't matter and nothing would flip.
-
-The city-by-city comparison is the fairer one, since it compares the two airlines under the same conditions. If I were booking one of these routes, ALASKA would be the better bet on every one of them.
+This is an example of **Simpson's Paradox**: a pattern that holds in every group reverses when the groups are combined. It happens here because the airlines split their flights across the cities in very different proportions, and the cities themselves have very different delay rates. The city-by-city comparison is the fairer one, since it compares the airlines under the same conditions. On every one of these routes, ALASKA is the better bet.
 
 ## Conclusions
 
-- Filling the blank airline names with `fill()` works because of the data's structure: each "delayed" row sits directly under its airline's "on time" row. A quick `count()` confirmed it.
-- `pivot_longer()` turned 4 wide rows into 20 long ones without adding any data, and a partial `pivot_wider()` put on-time and delayed counts side by side so I could calculate delay rates.
 - Overall, AM WEST had the lower delay rate (`r percent(aw$delay_rate, accuracy = 0.1)` vs. `r percent(ak$delay_rate, accuracy = 0.1)`).
 - City by city, ALASKA had the lower delay rate in all five cities.
 - The flip comes from route mix: AM WEST flies mostly into Phoenix, where delays are rare, and ALASKA flies mostly into Seattle, where they're common.
 
-The biggest takeaway for me is to be careful with blended totals whenever the groups being combined are different sizes. I see the same thing at work when comparing sales channels or products with very different volumes. One overall rate can hide what's actually happening in each piece, so it's worth breaking it down before drawing a conclusion.
+The takeaway is to be careful with blended totals when the groups being combined are different sizes. The same thing comes up at work when comparing sales channels or products with very different volumes: one overall rate can hide what's actually happening in each segment.
 
 ## Data source
 
@@ -454,6 +388,6 @@ Fung, K. (2013). *Numbersense: How to Use Big Data to Your Advantage*. McGraw Hi
 
 ## AI Disclosure and Citation
 
-Claude (Opus 5.5, accessed through claude.ai) helped me with this assignment. It helped write the original code and text, including recreating the CSV in the original layout, the `fill()` and pivot steps, the percentage tables and charts, and the first version of the Simpson's Paradox explanation. I then went back through the document with Claude one step at a time, asking questions about each part (how `fill()` knows which airline to use, how `pivot_longer()` decides what goes where, why the comparison has to happen before formatting, and why the overall result flips). Claude helped me rewrite this document around those questions and the checks I added, and helped me upload the CSV to my GitHub repo.
+Claude (Opus 5.5, accessed through claude.ai) helped with this assignment, including recreating the CSV in the original layout, writing the `fill()` and pivot steps, the percentage tables and charts, and the Simpson's Paradox explanation. I also used Claude to walk through each step of the code until I understood it, to revise the write-up, to add the route-mix and bubble charts, and to upload the CSV to my GitHub repo.
 
 Anthropic. (2026). *Claude (Opus 5.5)* \[Large language model\]. <https://claude.ai/>. Accessed October 3–4, 2026.
