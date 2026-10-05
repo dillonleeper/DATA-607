@@ -49,6 +49,9 @@ Each airline's name only appears once in the original table, on its "on time" ro
 library(tidyverse)   # reading, cleaning, reshaping, and charting
 library(knitr)       # kable() for clean tables
 library(scales)      # percent() and comma() for formatting numbers
+
+# One color per airline, used in every chart
+airline_colors <- c("ALASKA" = "#1f66a8", "AM WEST" = "#c9701a")
 ```
 
 ```{r}
@@ -101,7 +104,11 @@ Going line by line:
 - `fill()` copies the last non-blank value down into any blank cell below it, so the "delayed" row under ALASKA becomes ALASKA, and the same for AM WEST.
 - `as.integer` converts the five city columns back from text into whole numbers.
 
-**The question I had here:** how can we be sure `fill()` put the right airline on each row? It turns out `fill()` doesn't know anything about airlines. It just copies whatever is in the row above. It works because of how the data is structured: each airline's "delayed" row sits directly under its own "on time" row, and the CSV keeps the book's row order. If the rows ever got shuffled or sorted, `fill()` would quietly give the wrong names. So I added a quick check: each airline should have exactly one "on time" row and one "delayed" row.
+::: {.callout-note}
+## The question I had: How can we be sure `fill()` used the right airline?
+
+It turns out `fill()` doesn't know anything about airlines. It just copies whatever is in the row above. It works because of how the data is structured: each airline's "delayed" row sits directly under its own "on time" row, and the CSV keeps the book's row order. If the rows ever got shuffled or sorted, `fill()` would quietly give the wrong names. So I added a quick check: each airline should have exactly one "on time" row and one "delayed" row.
+:::
 
 ```{r}
 #| label: check-fill
@@ -135,7 +142,11 @@ The way I think about `pivot_longer()`:
 
 The test I used for deciding which columns to stack: the five city headers can all go under one word, "cities." When column headers are really values of something, that's a sign they belong in their own column instead.
 
-**The question I had here:** where did all these rows come from? I thought we only had four rows of data. But those four rows weren't four flights. Each one held five numbers, one per city. `pivot_longer()` splits each wide row into five skinny rows, so 4 rows × 5 cities = `r nrow(airlines_long)` rows. It's the same 20 numbers as before, just one per row. Nothing was added.
+::: {.callout-note}
+## The question I had: Where did all these rows come from?
+
+I thought we only had four rows of data. But those four rows weren't four flights. Each one held five numbers, one per city. `pivot_longer()` splits each wide row into five skinny rows, so 4 rows × 5 cities = `r nrow(airlines_long)` rows. It's the same 20 numbers as before, just one per row. Nothing was added.
+:::
 
 I also used `relocate()` to put the columns in the order airline, city, status, flights. R doesn't care about column order, but this reads better to me because it goes from the broadest grouping to the narrowest and ends with the number: "Alaska, in Los Angeles, on time: 497 flights." It also matches the comparison I'm making later, which is one airline in one city.
 
@@ -200,7 +211,7 @@ ggplot(overall, aes(x = airline, y = delay_rate, fill = airline)) +
   geom_col(width = 0.55) +
   geom_text(aes(label = percent(delay_rate, accuracy = 0.1)), vjust = -0.5) +
   scale_y_continuous(labels = percent, limits = c(0, 0.16)) +
-  scale_fill_manual(values = c("ALASKA" = "#2c5f8a", "AM WEST" = "#d9822b")) +
+  scale_fill_manual(values = airline_colors) +
   labs(title = "Overall delay rate", x = NULL, y = "Share of flights delayed") +
   theme_minimal(base_size = 12) +
   theme(legend.position = "none")
@@ -237,7 +248,11 @@ airlines_city |>
   )
 ```
 
-**The question I had here:** why does the order inside `mutate()` matter? Once `percent()` turns a number like 0.086 into the text "8.6%", R stops treating it as a number. If you compare text, R compares it alphabetically, one character at a time. That would actually break on this data. In San Diego, Alaska is at "8.6%" and AM WEST is at "14.5%". As text, R sees "1" coming before "8" and decides "14.5%" is smaller, which would wrongly name AM WEST the better airline. So the comparison has to happen first, while the rates are still numbers, and the formatting comes last.
+::: {.callout-note}
+## The question I had: Why does the order inside `mutate()` matter?
+
+Once `percent()` turns a number like 0.086 into the text "8.6%", R stops treating it as a number. If you compare text, R compares it alphabetically, one character at a time. That would actually break on this data. In San Diego, Alaska is at "8.6%" and AM WEST is at "14.5%". As text, R sees "1" coming before "8" and decides "14.5%" is smaller, which would wrongly name AM WEST the better airline. So the comparison has to happen first, while the rates are still numbers, and the formatting comes last.
+:::
 
 ```{r}
 #| label: fig-by-city
@@ -253,7 +268,7 @@ ggplot(airlines_city, aes(x = city, y = delay_rate, fill = airline)) +
     size = 3.2
   ) +
   scale_y_continuous(labels = percent, limits = c(0, 0.32)) +
-  scale_fill_manual(values = c("ALASKA" = "#2c5f8a", "AM WEST" = "#d9822b")) +
+  scale_fill_manual(values = airline_colors) +
   labs(
     title = "Delay rate by destination city",
     x = NULL, y = "Share of flights delayed", fill = NULL
@@ -306,14 +321,99 @@ mix <- airlines_city |>
 
 aw_phx <- mix |> filter(airline == "AM WEST", city == "Phoenix")
 ak_sea <- mix |> filter(airline == "ALASKA", city == "Seattle")
+
+# Order cities from fewest delays to most (both airlines combined), for the charts below
+city_order <- airlines_city |>
+  group_by(city) |>
+  summarise(rate = sum(delayed) / sum(total)) |>
+  arrange(rate) |>
+  pull(city)
 ```
 
 - About `r percent(aw_phx$share, accuracy = 1)` of AM WEST's flights go to **Phoenix**, which has the lowest delay rate of any city for both airlines (AM WEST is at `r percent(aw_phx$delay_rate, accuracy = 0.1)` there).
 - About `r percent(ak_sea$share, accuracy = 1)` of ALASKA's flights go to **Seattle**, where delays are much more common (`r percent(ak_sea$delay_rate, accuracy = 0.1)` for ALASKA).
 
+Seeing it as a picture made it a lot clearer for me. Each bar is one airline's whole schedule, split up by where the flights go. The cities are colored from lightest (fewest delays) to darkest (most delays).
+
+```{r}
+#| label: fig-route-mix
+#| fig-width: 8
+#| fig-height: 2.6
+
+city_fills <- setNames(colorRampPalette(c("#fbe1d2", "#9b2a17"))(5), city_order)
+
+mix |>
+  mutate(city = factor(city, levels = city_order)) |>
+  ggplot(aes(x = share, y = airline, fill = city)) +
+  geom_col(width = 0.65, color = "white", linewidth = 0.8,
+           position = position_stack(reverse = TRUE)) +
+  geom_text(
+    aes(
+      label = if_else(share >= 0.1, paste0(city, "\n", percent(share, accuracy = 1)), ""),
+      color = if_else(as.integer(city) >= 4, "white", "#262b33")
+    ),
+    position = position_stack(vjust = 0.5, reverse = TRUE),
+    size = 3.3, lineheight = 0.9
+  ) +
+  scale_fill_manual(values = city_fills) +
+  scale_color_identity() +
+  scale_x_continuous(labels = percent, expand = c(0, 0)) +
+  labs(
+    title = "Where each airline's flights go",
+    subtitle = "Cities shaded from fewest delays (light) to most delays (dark)",
+    x = "Share of the airline's flights", y = NULL, fill = NULL
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "bottom", panel.grid = element_blank(),
+        axis.text.y = element_text(face = "bold"),
+        plot.margin = margin(5, 18, 5, 5))
+```
+
+AM WEST's bar is almost entirely the lightest color. ALASKA's is mostly the darker end.
+
 Since the overall rate is weighted by flight volume, each airline's overall number ends up close to the rate of the city it flies to most. AM WEST does a lot of easy flights into Phoenix, and those pull its overall delay rate down. ALASKA's heavy schedule into Seattle pulls its overall rate up. So the overall comparison is really "AM WEST, mostly in easy Phoenix" against "ALASKA, mostly in hard Seattle." That's a comparison of routes, not airlines.
 
+This chart shows that pull directly. Each bubble is one airline in one city, and the bigger the bubble, the more flights it represents. The dashed lines are each airline's overall delay rate.
+
+```{r}
+#| label: fig-bubbles
+#| fig-width: 8
+#| fig-height: 4.5
+
+airlines_city |>
+  mutate(city = factor(city, levels = city_order)) |>
+  ggplot(aes(x = city, y = delay_rate, color = airline)) +
+  geom_hline(
+    data = overall,
+    aes(yintercept = delay_rate, color = airline),
+    linetype = "dashed", linewidth = 0.7, show.legend = FALSE
+  ) +
+  geom_point(aes(size = total), alpha = 0.75,
+             position = position_dodge(width = 0.55)) +
+  annotate("text", x = 5.55, y = overall$delay_rate,
+           label = paste(overall$airline, "overall:", percent(overall$delay_rate, accuracy = 0.1)),
+           hjust = 1, vjust = c(-0.7, 1.7), size = 3.3, color = "#3d434c") +
+  scale_color_manual(values = airline_colors) +
+  scale_size_area(max_size = 18, breaks = c(250, 1000, 5000), labels = comma) +
+  scale_y_continuous(labels = percent, limits = c(0, 0.32)) +
+  labs(
+    title = "Delay rate by city, sized by number of flights",
+    subtitle = "Cities ordered from fewest delays to most. Dashed lines show each airline's overall rate.",
+    x = NULL, y = "Share of flights delayed", color = NULL, size = "Flights"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "right", panel.grid.minor = element_blank(),
+        panel.grid.major.x = element_blank()) +
+  guides(color = guide_legend(override.aes = list(size = 5), order = 1))
+```
+
+Each dashed line sits close to that airline's biggest bubble. AM WEST's line is pulled down toward its huge Phoenix bubble, and ALASKA's is pulled up toward Seattle. But in every single city, the blue bubble sits lower than the orange one.
+
+::: {.callout-tip}
+## How I finally got it
+
 The way I finally got my head around it was to think of two kids shooting baskets. One is better at both close shots and far shots, but takes mostly far shots. The other takes mostly close shots. At the end of the day, the second kid has made more baskets and looks like the better shooter, even though they're worse at every kind of shot. ALASKA is the first kid. AM WEST is the second.
+:::
 
 To check that the route mix really is the cause, I asked one more question: what would AM WEST's overall delay rate be if it flew ALASKA's exact schedule, the same number of flights to each city, but kept its own delay rate in each city?
 
