@@ -1,0 +1,393 @@
+---
+title: "Assignment 5B: Chess ELO Calculations"
+subtitle: "DATA 607 · Week 5"
+author: "Dillon Leeper"
+date: today
+date-format: "MMMM D, YYYY"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-fold: true
+    code-summary: "Show code"
+    code-tools: true
+    df-print: kable
+    smooth-scroll: true
+    embed-resources: true
+    css: styles.css
+
+execute:
+  warning: false
+  message: false
+
+editor: visual
+---
+
+## Overview
+
+This assignment builds on the Project 1 tournament data: the same 64-player, seven-round USCF tournament report I parsed for Project 1. This time, instead of just averaging each player's opponent ratings, I use the rating difference in every game to calculate each player's **expected score** for the tournament, compare it to their **actual score**, and find the five players who most overperformed and the five who most underperformed.
+
+## Approach
+
+I reused the Project 1 parsing logic, with one addition. Project 1 only needed the opponent's pair number from each round (the `39` in `W 39`), so it threw away the result letter. Here I kept both the letter and the number, so each round tells me who the player faced and how the game ended.
+
+From there I:
+
+1.  Built one row per player per round, with the result letter and opponent number.
+2.  Kept only real games (W, L, D) and scored them 1, 0, and 0.5. Rounds marked `B`, `H`, `U`, or `X` are byes, unplayed rounds, or forfeits, so they have no opponent rating to compare against.
+3.  Looked up each opponent's pre-tournament rating and calculated the expected score for every game with the Elo formula.
+4.  Summed expected and actual scores per player and took the difference.
+5.  Ranked players by that difference to find the top five over- and underperformers.
+
+One thing I changed from my Approach write-up: I compare expected score to the points a player earned **in games actually played**, not their listed total. The total in the report includes bye and forfeit points (a half-point bye counts as 0.5, a full bye or forfeit win as 1). Those rounds have no opponent, so they can't have an expected score. Leaving them on the actual side only would make players with byes look like they overperformed when they really just got free points. For most players the two numbers are the same.
+
+## The Elo expected score formula
+
+For a player rated $R_A$ facing an opponent rated $R_B$, the expected score for that game is:
+
+$$
+E_A = \frac{1}{1 + 10^{(R_B - R_A)/400}}
+$$
+
+This is a number between 0 and 1. Two equally rated players each have an expected score of 0.5. A player rated 400 points higher has an expected score of about 0.91, meaning they'd be expected to score roughly 9 out of 10 points over 10 games against that opponent. Summing $E_A$ across all of a player's games gives their expected score for the tournament.
+
+**Source:** Elo, A. E. (1978). *The Rating of Chess Players, Past and Present*. Arco Publishing. This is the same logistic formula used by FIDE and the USCF for expected scores.
+
+## Load the data
+
+```{r}
+#| label: setup
+
+library(tidyverse)
+library(knitr)
+```
+
+```{r}
+#| label: load-data
+
+data_url <- paste0(
+  "https://raw.githubusercontent.com/dillonleeper/",
+  "DATA-607/main/assignments/week04/tournament-results.txt"
+)
+
+tournament_lines <- readLines(data_url, warn = FALSE)
+```
+
+This is the same file from Project 1, read from its public GitHub URL. It has `r length(tournament_lines)` lines: a short header, then two lines per player.
+
+## Parse the players and rounds
+
+Each player takes up two lines in the report. The first line has the pair number, name, total points, and seven round fields like `W  39`. The second has the state and the pre-tournament rating, written like `R: 1794   ->1817`. Provisional ratings like `1641P17` are cut down to just the number.
+
+```{r}
+#| label: parse-players
+
+player_line_numbers <- grep("^\\s*[0-9]+\\s*\\|", tournament_lines)
+
+split_fields <- function(line) {
+  trimws(strsplit(line, "|", fixed = TRUE)[[1]])
+}
+
+players <- map_dfr(player_line_numbers, function(i) {
+  player_fields <- split_fields(tournament_lines[i])
+  detail_fields <- split_fields(tournament_lines[i + 1])
+
+  tibble(
+    player_number = as.integer(player_fields[1]),
+    player_name   = player_fields[2],
+    state         = detail_fields[1],
+    total_points  = as.numeric(player_fields[3]),
+    pre_rating    = as.integer(str_match(detail_fields[2], "R:\\s*([0-9]+)")[, 2]),
+    rounds        = list(player_fields[4:10])
+  )
+})
+
+players |>
+  head() |>
+  transmute(player_number, player_name = str_to_title(player_name), state, total_points, pre_rating) |>
+  kable(col.names = c("#", "Player", "State", "Total points", "Pre-rating"),
+        caption = "First six players")
+```
+
+Now each player's seven round fields get split into a result letter and an opponent number, giving one row per player per round:
+
+```{r}
+#| label: parse-rounds
+
+rounds <- players |>
+  select(player_number, rounds) |>
+  unnest_longer(rounds, values_to = "round_field", indices_to = "round") |>
+  mutate(
+    result          = str_extract(round_field, "^[A-Z]"),
+    opponent_number = as.integer(str_extract(round_field, "[0-9]+"))
+  )
+
+rounds |>
+  filter(player_number == 1) |>
+  select(round, round_field, result, opponent_number) |>
+  kable(col.names = c("Round", "Raw field", "Result", "Opponent #"),
+        caption = "Gary Hua's seven rounds")
+```
+
+That's Gary Hua's seven rounds: five wins and two draws, matching his 6.0 points.
+
+## Calculate expected scores
+
+```{r}
+#| label: expected-scores
+
+rating_lookup <- setNames(players$pre_rating, players$player_number)
+
+games <- rounds |>
+  filter(result %in% c("W", "L", "D")) |>          # real games only
+  mutate(
+    player_rating   = rating_lookup[as.character(player_number)],
+    opponent_rating = rating_lookup[as.character(opponent_number)],
+    actual          = recode(result, W = 1, D = 0.5, L = 0),
+    expected        = 1 / (1 + 10^((opponent_rating - player_rating) / 400))
+  )
+
+games |>
+  filter(player_number == 1) |>
+  select(round, result, opponent_number, player_rating, opponent_rating, actual, expected) |>
+  mutate(expected = round(expected, 3)) |>
+  kable(col.names = c("Round", "Result", "Opponent #", "Gary's rating",
+                      "Opponent rating", "Actual", "Expected"),
+        caption = "Gary Hua's games, scored")
+```
+
+For example, in round 1 Gary (1794) beat player 39, who was rated 1436. With a 358-point rating edge, his expected score for that game was about 0.89, so the win only beat expectation by about 0.11.
+
+```{r}
+#| label: player-totals
+
+elo_results <- games |>
+  group_by(player_number) |>
+  summarise(
+    games_played   = n(),
+    actual_score   = sum(actual),
+    expected_score = sum(expected)
+  ) |>
+  right_join(
+    players |> select(player_number, player_name, state, total_points, pre_rating),
+    by = "player_number"
+  ) |>
+  mutate(
+    across(c(games_played, actual_score, expected_score), \(x) replace_na(x, 0)),
+    difference = actual_score - expected_score
+  ) |>
+  select(player_number, player_name, state, pre_rating, total_points,
+         games_played, actual_score, expected_score, difference) |>
+  arrange(player_number)
+```
+
+## Checks
+
+```{r}
+#| label: checks
+
+gary <- elo_results |> filter(player_number == 1)
+
+stopifnot(
+  nrow(elo_results) == 64,
+  !anyNA(games$opponent_rating),                  # every opponent found
+  all(games$expected > 0 & games$expected < 1),
+  gary$actual_score == 6,
+  # games-only score never exceeds the listed total (byes only add points)
+  all(elo_results$actual_score <= elo_results$total_points)
+)
+
+# Each game appears twice in `games`, once from each player's side. The two
+# sides' expected scores add up to exactly 1, and so do their actual results,
+# so both totals should equal the number of distinct games.
+tibble(
+  Check = c("Total expected points", "Total actual points", "Games played"),
+  Value = c(round(sum(games$expected), 2), sum(games$actual), nrow(games) / 2)
+) |>
+  kable(caption = "All three should match")
+```
+
+The totals line up: `r nrow(games) / 2` games were played, and both the expected and actual scores across the whole tournament add up to `r nrow(games) / 2`. Every game shows up twice in `games` (once from each player's side), and the two sides always split exactly 1 point between them, in expectation and in reality. That's a good sign the rating lookups and the formula are working.
+
+## Results
+
+### Top 5 overperformers
+
+```{r}
+#| label: overperformers
+
+show_cols <- c("Player", "State", "Pre-rating", "Games", "Actual", "Expected", "Difference")
+
+over <- elo_results |>
+  slice_max(difference, n = 5)
+
+over |>
+  transmute(player_name = str_to_title(player_name), state, pre_rating, games_played, actual_score,
+            expected_score = round(expected_score, 2), difference = round(difference, 2)) |>
+  kable(col.names = show_cols, caption = "Biggest overperformers (actual minus expected)")
+```
+
+### Top 5 underperformers
+
+```{r}
+#| label: underperformers
+
+under <- elo_results |>
+  slice_min(difference, n = 5)
+
+under |>
+  transmute(player_name = str_to_title(player_name), state, pre_rating, games_played, actual_score,
+            expected_score = round(expected_score, 2), difference = round(difference, 2)) |>
+  kable(col.names = show_cols, caption = "Biggest underperformers (actual minus expected)")
+```
+
+### Everyone, visualized
+
+```{r}
+#| label: fig-difference
+#| fig-width: 8
+#| fig-height: 9
+
+highlight <- c(over$player_number, under$player_number)
+
+elo_results |>
+  mutate(
+    group = case_when(
+      player_number %in% over$player_number  ~ "Top 5 over",
+      player_number %in% under$player_number ~ "Top 5 under",
+      TRUE ~ "Everyone else"
+    ),
+    label = fct_reorder(str_to_title(player_name), difference)
+  ) |>
+  ggplot(aes(x = difference, y = label, fill = group)) +
+  geom_col() +
+  geom_vline(xintercept = 0, color = "grey40") +
+  scale_fill_manual(values = c("Top 5 over" = "#2c5f8a",
+                               "Top 5 under" = "#c0392b",
+                               "Everyone else" = "grey75")) +
+  labs(
+    title = "Actual score minus expected score",
+    x = "Points above (right) or below (left) expectation",
+    y = NULL, fill = NULL
+  ) +
+  theme_minimal(base_size = 10) +
+  theme(legend.position = "top")
+```
+
+### Round by round
+
+The chart above shows where everyone ended up. This one shows how they got there. Each line is one player's running total of points above or below expectation: it starts at zero, rises when the player beats their expected score in a game, and falls when they come up short. Byes and unplayed rounds leave the line flat, since they have no expected score. The top five over- and underperformers are highlighted, and everyone else is in gray. (The report only lists ratings before and after the tournament, so this tracks results against expectation rather than a round-by-round rating.)
+
+```{r}
+#| label: fig-round-progress
+#| fig-width: 9
+#| fig-height: 6
+
+round_progress <- rounds |>
+  select(player_number, round) |>
+  left_join(games |> select(player_number, round, actual, expected),
+            by = c("player_number", "round")) |>
+  mutate(round_diff = replace_na(actual - expected, 0)) |>   # byes and unplayed rounds add 0
+  bind_rows(tibble(player_number = players$player_number, round = 0L, round_diff = 0)) |>
+  arrange(player_number, round) |>
+  group_by(player_number) |>
+  mutate(running_diff = cumsum(round_diff)) |>
+  ungroup() |>
+  left_join(elo_results |> select(player_number, player_name), by = "player_number") |>
+  mutate(group = case_when(
+    player_number %in% over$player_number  ~ "Top 5 over",
+    player_number %in% under$player_number ~ "Top 5 under",
+    TRUE ~ "Everyone else"
+  ))
+
+# Name labels at the end of each highlighted line, spaced so they don't overlap
+end_labels <- round_progress |>
+  filter(round == 7, group != "Everyone else") |>
+  arrange(running_diff) |>
+  mutate(
+    label_y = accumulate(running_diff, \(prev, y) max(y, prev + 0.32)),
+    label_y = label_y - (mean(label_y) - mean(running_diff)),
+    label = paste0(str_to_title(player_name), " (", sprintf("%+.2f", running_diff), ")"),
+    .by = group
+  )
+
+highlight_colors <- c("Top 5 over" = "#2c5f8a", "Top 5 under" = "#c0392b")
+
+ggplot(round_progress, aes(x = round, y = running_diff, group = player_number)) +
+  geom_hline(yintercept = 0, color = "grey50", linewidth = 0.4) +
+  geom_line(data = \(d) filter(d, group == "Everyone else"),
+            color = "grey80", linewidth = 0.5) +
+  geom_line(data = \(d) filter(d, group != "Everyone else"),
+            aes(color = group), linewidth = 1.1) +
+  geom_point(data = \(d) filter(d, group != "Everyone else"),
+             aes(color = group), size = 1.4) +
+  geom_segment(data = end_labels,
+               aes(x = 7.05, xend = 7.35, y = running_diff, yend = label_y, color = group),
+               linewidth = 0.3) +
+  geom_text(data = end_labels,
+            aes(x = 7.4, y = label_y, label = label, color = group),
+            hjust = 0, size = 3.1) +
+  scale_color_manual(values = highlight_colors) +
+  scale_x_continuous(breaks = 0:7, limits = c(0, 10.2), expand = c(0.01, 0)) +
+  labs(
+    title = "Running points above or below expectation, round by round",
+    x = "Round (0 = start)", y = "Points vs. expectation", color = NULL
+  ) +
+  theme_minimal(base_size = 11) +
+  theme(legend.position = "none",
+        panel.grid.minor = element_blank())
+```
+
+Most of the gray lines stay close to zero, meaning those players scored about what their ratings predicted. The top overperformers built their lead over several rounds rather than in one game. Aditya Bajaj, for example, lost his first game, beat a lower-rated player, and then won five straight against higher-rated opponents. Jacob Alexander Lavalley's line has a different shape: with a 377 rating he was expected to lose almost every game, so his losses barely moved the line and his three wins account for nearly all of his gain. The underperformers mostly slide over several rounds too, which points to a whole tournament below their rating rather than one bad game.
+
+### Full table
+
+::: scroll-table
+```{r}
+#| label: full-table
+
+elo_results |>
+  arrange(desc(difference)) |>
+  transmute(player_number, player_name = str_to_title(player_name), state, pre_rating,
+            total_points, games_played, actual_score,
+            expected_score = round(expected_score, 2), difference = round(difference, 2)) |>
+  kable(col.names = c("#", "Player", "State", "Pre-rating", "Total points",
+                      "Games", "Actual", "Expected", "Difference"),
+        caption = "All 64 players, sorted by difference")
+```
+:::
+
+```{r}
+#| label: export
+#| include: false
+
+write_csv(elo_results, "elo-results.csv")
+```
+
+```{r}
+#| label: summary-values
+#| include: false
+
+top_over  <- over |> slice(1)
+top_under <- under |> slice(1)
+```
+
+## Conclusions
+
+The biggest overperformer was **`r str_to_title(top_over$player_name)`**, who started with a pre-tournament rating of `r top_over$pre_rating` and was expected to score about `r round(top_over$expected_score, 1)` points, but actually scored `r top_over$actual_score`, beating expectation by `r round(top_over$difference, 2)` points. The biggest underperformer was **`r str_to_title(top_under$player_name)`** (rated `r top_under$pre_rating`), who was expected to score about `r round(top_under$expected_score, 1)` points and scored `r top_under$actual_score`.
+
+Four of the five overperformers came in rated below the middle of the field, and the fifth (Stefano Lee, 1411) was right at it (the median pre-rating is `r median(elo_results$pre_rating)`), while the underperformers are more of a mix. Some of the overperformance is probably real improvement, but some of it is how ratings work. A low or provisional rating is a rough estimate, so a player whose rating hasn't caught up to their actual skill will look like a big overperformer. Jacob Alexander Lavalley is the clearest example: his pre-tournament rating of 377 was provisional, based on only 3 games, so the formula expected him to score almost nothing, and his rating jumped to 1076 after this tournament. Comparing each player's difference to their post-tournament rating change would be a good next step, since the USCF uses a version of this same expected-score math to update ratings.
+
+The full results are saved as [`elo-results.csv`](https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week05/5B/elo-results.csv){target="_blank"}.
+
+## Data source
+
+The tournament report was supplied by the course instructor and is stored in my repo as [`tournament-results.txt`](https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week04/tournament-results.txt){target="_blank"} (from Project 1).
+
+## AI Disclosure and Citation
+
+Claude (Opus 5.5, accessed through claude.ai) helped write the code and text in this document, including extending the Project 1 parser to keep each round's result, the expected-score calculation and checks, the over/underperformer tables and charts (including the round-by-round chart), the decision to compare expected score against points from games actually played, and the document's styling and table formatting.
+
+Anthropic. (2026). *Claude (Opus 5.5)* \[Large language model\]. <https://claude.ai/>. Accessed October 3–4, 2026.

@@ -1,0 +1,160 @@
+/* ============================================================
+   DATA 607 · 5B: clean, modern styling on top of the "cosmo" theme
+   Neutral grays, one quiet accent, and each computer's own system font
+   (San Francisco on Mac, Segoe UI on Windows). No web fonts to download.
+   !important is used where Quarto's built-in theme would otherwise win.
+   ============================================================ */
+
+
+:root {
+  --ink: #1d1d1f;          /* main text */
+  --ink-soft: #424245;     /* secondary text */
+  --muted: #86868b;        /* captions, labels */
+  --line: #e5e5ea;         /* hairlines */
+  --panel: #f5f5f7;        /* light gray surfaces */
+  --accent: #0066cc;       /* links, active TOC item */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI Variable Text", "Segoe UI", Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+
+  --bs-body-font-family: var(--font-sans);
+  --bs-font-sans-serif: var(--font-sans);
+  --bs-body-color: var(--ink);
+}
+
+/* ---------- Type ---------- */
+body {
+  font-family: var(--font-sans) !important;
+  color: var(--ink) !important;
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, .title, .subtitle,
+#TOC, .sidebar, .quarto-title-meta, table, figcaption, .caption {
+  font-family: var(--font-sans) !important;
+}
+
+#title-block-header .title,
+h1.title {
+  color: var(--ink) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em;
+  font-size: 2.3rem;
+  border: 0 !important;
+}
+
+#title-block-header .subtitle {
+  color: var(--ink-soft) !important;
+  font-weight: 400;
+  font-size: 1.15rem;
+  margin-top: 0.3rem;
+}
+
+.quarto-title-meta-heading { color: var(--muted) !important; letter-spacing: 0.06em; }
+.quarto-title-meta-contents { color: var(--ink-soft) !important; }
+
+h2 {
+  color: var(--ink) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em;
+  margin-top: 2.6rem !important;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line) !important;
+}
+
+h3 {
+  color: var(--ink) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+  margin-top: 1.8rem !important;
+}
+
+p, li { color: var(--ink); }
+
+/* ---------- Links ---------- */
+a { color: var(--accent) !important; text-decoration: none !important; }
+a:hover { text-decoration: underline !important; }
+
+/* ---------- Table of contents ---------- */
+#TOC {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+}
+#TOC .toc-title, #toc-title { color: var(--muted) !important; font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; }
+#TOC a { color: var(--ink-soft) !important; }
+#TOC a.active, #TOC a:hover { color: var(--ink) !important; font-weight: 600; text-decoration: none !important; }
+#TOC a.active { border-left-color: var(--ink) !important; }
+
+/* ---------- Code ---------- */
+code, pre, .sourceCode { font-family: var(--font-mono) !important; }
+
+pre, div.sourceCode {
+  background-color: var(--panel) !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+p code:not(.sourceCode), li code:not(.sourceCode), td code:not(.sourceCode) {
+  color: var(--ink) !important;
+  background-color: var(--panel) !important;
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  font-size: 0.88em;
+}
+
+/* ---------- Tables (kable and paged) ---------- */
+table { font-variant-numeric: tabular-nums; font-size: 0.92rem; }
+
+table.table > thead > tr > th,
+table thead th {
+  background-color: var(--panel) !important;
+  color: var(--ink) !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+
+table.table > tbody > tr > td,
+table tbody td {
+  border-bottom: 1px solid var(--line) !important;
+  --bs-table-accent-bg: transparent;   /* no zebra stripes */
+  --bs-table-bg-type: transparent;
+  box-shadow: none !important;
+}
+
+table caption, .table caption {
+  color: var(--muted) !important;
+  font-size: 0.85rem;
+  caption-side: top;
+}
+
+.pagedtable-header-type { color: var(--muted) !important; }
+.pagedtable-footer, .pagedtable-info { color: var(--muted) !important; }
+
+/* ---------- Figures ---------- */
+.figure img, .cell-output-display img { border-radius: 8px; }
+
+/* ---------- Misc ---------- */
+hr { border: none; border-top: 1px solid var(--line); margin: 2.4rem 0; }
+blockquote { border-left: 3px solid var(--line); color: var(--ink-soft); padding-left: 1rem; }
+.katex-display, .math.display { overflow-x: auto; }
+
+/* ---------- Long tables: scroll inside a box, header stays visible ---------- */
+.scroll-table .cell-output-display {
+  max-height: 460px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.scroll-table table { margin: 0 !important; }
+.scroll-table thead th { position: sticky; top: 0; z-index: 1; }
+.scroll-table caption { position: sticky; top: 0; background: #fff; }
+
+/* ---------- Folded code: quiet "Show code" toggle ---------- */
+details.code-fold > summary, .code-fold summary {
+  color: var(--muted) !important;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
