@@ -1,0 +1,180 @@
+---
+title:  "Project 2 Approach"
+author: "Dillon Leeper"
+date:   today
+format:
+  html:
+    toc: true
+    theme: flatly
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+## Overview
+
+For Project 2 I'm working with three wide or messy datasets from the
+Discussion 5A posts. For each one I plan to:
+
+1.  Save the original table as a raw CSV, keeping it untidy, and push it
+    to GitHub.
+2.  Load it into R and tidy it with `tidyr` and `dplyr`.
+3.  Run the analysis from the original post using only the tidy data,
+    with tables, `ggplot2` charts, and a short write-up of what I found.
+
+Each dataset will get its own Quarto file published to RPubs.
+
+------------------------------------------------------------------------
+
+## Dataset 1: Pokémon Base Set Population Report (my post)
+
+**Source:** PriceCharting's PSA/CGC population report for the Pokémon
+Base Set (<https://www.pricecharting.com/pop/set/pokemon-base-set>). It
+shows how many copies of each card have been graded at each grade. I've
+had some of my own cards graded by PSA, so I've spent a lot of time
+looking at reports like this.
+
+**Why it's untidy**
+
+- Grade is a variable, but it's stuck in the column headers (Grade 6
+  through Grade 10), so every row holds five observations.
+- The card column crams three things into one string. "Charizard \[1st
+  Edition\] #4" is the name, the edition, and the card number.
+- The Total doesn't add up. Grades 1 through 5 are counted in it but
+  don't have their own columns.
+- Numbers have commas and missing values show up as "-", so R reads them
+  as text.
+- Booster boxes and packs are mixed in with the cards.
+
+**How I'll tidy it**
+
+- Rename the columns to snake_case.
+- Turn "-" into `NA`, strip the commas, and treat a missing grade as 0
+  copies.
+- Drop the sealed products since they don't have any grade data.
+- Split the card column into `card_name`, `variant`, and `card_number`.
+  A card with no bracket is the regular Unlimited printing.
+- Back out the hidden grades with
+  `grade_1_to_5 = total - (grades 6 to 10)`.
+- Use `pivot_longer()` to get one row per card per grade.
+
+``` r
+pop_tidy <- raw_pop |>
+  rename_with(~ str_replace_all(str_to_lower(.x), " ", "_")) |>
+  mutate(across(grade_6:total, ~ parse_number(na_if(.x, "-")))) |>
+  filter(!is.na(total)) |>
+  extract(card, c("card_name", "variant", "card_number"),
+          regex = "^(.*?)\\s*(?:\\[(.*)\\])?\\s*#(\\d+)$") |>
+  mutate(grade_1_to_5 = total - (grade_6 + grade_7 + grade_8 + grade_9 + grade_10)) |>
+  pivot_longer(c(grade_1_to_5, grade_6:grade_10),
+               names_to = "grade", values_to = "population")
+```
+
+**What I'll look at**
+
+- **Gem rate:** the percent of graded copies that got a 10. This is the
+  number collectors care about most.
+- **Hardest 10s:** which cards have the lowest gem rate.
+- **1st Edition vs. Unlimited:** does one printing tend to grade better?
+- **Holo vs. non-holo:** are the holo cards harder to get a 10 on?
+
+**Limits:** PSA and CGC are combined into one number, half grades are
+rolled into whole grades, and the table doesn't include prices.
+
+------------------------------------------------------------------------
+
+## Dataset 2: SSA Top 5 Baby Names, 1926 to 2025 (classmate's post)
+
+**Source:** Social Security Administration, Top 5 Names in Each of the
+Last 100 Years (<https://www.ssa.gov/oact/babynames/top5names.html>).
+
+**Why it's untidy**
+
+- The headers are grouped. "Girls" and "Boys" each repeat "Rank 1"
+  through "Rank 5," so sex and rank both live in the column headers.
+- Each row packs ten name observations into one year.
+- The two-level header will import with duplicate column names.
+
+**How I'll tidy it**
+
+- Rebuild the headers so each column has its sex and rank, like
+  `girls_rank_1`.
+- Use `pivot_longer()` to split those headers into `sex` and `rank`,
+  with the name in its own column.
+- Make `year` and `rank` numbers and clean up any extra spaces in names.
+- Check that every year has exactly 5 girls' names and 5 boys' names.
+
+``` r
+names_tidy <- raw_names |>
+  pivot_longer(-year,
+               names_to = c("sex", "rank"),
+               names_pattern = "(girls|boys)_rank_(\\d)",
+               values_to = "name") |>
+  mutate(rank = as.integer(rank), sex = str_to_title(sex))
+```
+
+**What I'll look at**
+
+- **Longest streaks:** which names stayed in the top five for the most
+  years in a row.
+- **Turnover:** do girls' names change more often than boys' names?
+
+**Limits:** the table only has ranks, not birth counts, so I can't tell
+how big the gap is between names.
+
+------------------------------------------------------------------------
+
+## Dataset 3: Dirty Cafe Sales (classmate's post)
+
+**Source:** "Cafe Sales: Dirty Data for Cleaning Training" on Kaggle
+(<https://www.kaggle.com/datasets/ahmedmohamed2003/cafe-sales-dirty-data-for-cleaning-training/data>).
+It's a synthetic set of cafe transactions.
+
+**Why it's untidy**
+
+- Lots of cells are blank, and some say "ERROR" or "UNKNOWN" instead of
+  a value.
+- Because of that text, the number and date columns load as text.
+- The column names have spaces and mixed case.
+- It's more messy than wide, so for the reshape step I'll stack
+  quantity, price, and total into one column with `pivot_longer()` to
+  check them together, then spread them back out with `pivot_wider()`
+  once they're fixed.
+
+**How I'll tidy it**
+
+- Rename the columns to snake_case.
+- Treat blanks, "ERROR", and "UNKNOWN" as `NA`, then convert the numbers
+  and dates.
+- Fill in missing numbers using the other two, like the post suggests:
+  total = quantity × price, quantity = total ÷ price, price = total ÷
+  quantity.
+- Each menu item has one set price, so I can fill a missing price from
+  the item, or a missing item from a price that only one item has.
+- Keep missing payment methods and locations as "Unknown" instead of
+  guessing.
+- Track how many values each fix recovered.
+
+``` r
+cafe_tidy <- raw_cafe |>
+  rename_with(~ str_replace_all(str_to_lower(.x), " ", "_")) |>
+  mutate(across(everything(), ~ na_if(na_if(na_if(str_trim(.x), ""), "ERROR"), "UNKNOWN"))) |>
+  mutate(across(c(quantity, price_per_unit, total_spent), parse_number),
+         transaction_date = as.Date(transaction_date)) |>
+  mutate(total_spent    = coalesce(total_spent, quantity * price_per_unit),
+         quantity       = coalesce(quantity, total_spent / price_per_unit),
+         price_per_unit = coalesce(price_per_unit, total_spent / quantity))
+```
+
+**What I'll look at**
+
+- **Payment methods:** which ones get used the most.
+- **Top items:** the most bought item by quantity and by revenue.
+- **Who spends the most on what:** spending by item, split by payment
+  method and location (in-store vs. takeaway).
+- **Cleaning results:** how many bad values were in each column and how
+  many I fixed.
+
+**Limits:** the data is fake, and there's no customer ID, so "who spends
+the most" can only be answered by payment method and location, not by
+person.
