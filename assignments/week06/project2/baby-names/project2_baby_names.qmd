@@ -1,0 +1,333 @@
+---
+title: "Project 2: Top 5 Baby Names, 1926 to 2025"
+subtitle: "DATA 607 · Project 2 · Dataset 2 of 3"
+author: "Dillon Leeper"
+date: today
+date-format: "MMMM D, YYYY"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-fold: true
+    code-tools: true
+    smooth-scroll: true
+    embed-resources: true
+    css: styles.css
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Overview
+
+This dataset comes from a classmate's Discussion 5A post. It's the Social Security Administration's list of the five most popular baby names for girls and boys in every year from 1926 through 2025. The question from the post: **which names stayed popular the longest, and do boys' and girls' names turn over at different rates?**
+
+```{r}
+#| label: setup
+
+library(tidyverse)   # reading, reshaping, and charting
+library(knitr)       # kable() for tables
+library(scales)      # number formatting
+
+# Shared look for all three Project 2 datasets
+theme_p2 <- function() {
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title       = element_text(face = "bold"),
+      panel.grid.minor = element_blank(),
+      legend.position  = "top"
+    )
+}
+sex_colors <- c("Girls" = "#c9701a", "Boys" = "#2c5f8a")
+```
+
+## Data source
+
+Social Security Administration, [Top 5 Names in Each of the Last 100 Years](https://www.ssa.gov/oact/babynames/top5names.html), accessed October 11, 2026. I copied the HTML table into `ssa_top5_names_wide.csv` without changing its layout. The page has a two-level header: a top row with "Girls" over the first five name columns and "Boys" over the last five, and a second row with "Year" and then "Rank 1" through "Rank 5" twice. I kept both header rows in the CSV so the code has to rebuild them.
+
+The page notes that Michael was the top boys' name 44 times and Mary the top girls' name 30 times. My copy matches both counts, which is a quick check that nothing was lost in the copy.
+
+## Data structure before tidying
+
+```{r}
+#| label: load-data
+
+csv_url <- paste0(
+  "https://raw.githubusercontent.com/dillonleeper/",
+  "DATA-607/main/assignments/week06/project2/baby-names/ssa_top5_names_wide.csv"
+)
+
+# Read every cell as text with no header, so both header rows come in as data.
+# Try the GitHub copy first; fall back to the local copy if it can't be reached.
+read_raw <- function(path) {
+  read_csv(path, col_names = FALSE, col_types = cols(.default = col_character()))
+}
+raw_names <- tryCatch(read_raw(csv_url), error = function(e) read_raw("ssa_top5_names_wide.csv"))
+
+head(raw_names, 5) |> kable(caption = "First five rows of the raw file, exactly as stored")
+```
+
+The raw file has **`r nrow(raw_names)` rows** and **`r ncol(raw_names)` columns**: 2 header rows plus `r nrow(raw_names) - 2` years. Why it's untidy:
+
+- **Sex and rank are stored in the headers.** They're two variables, but they only exist as column labels.
+- **The header is split across two rows.** "Girls" and "Boys" appear once each, over blank cells, so R can't name the columns on its own. Read normally, it would produce duplicate names like `Rank 1` and `Rank 1`.
+- **Each row holds ten observations.** One row is one year, but it contains ten separate name-rank facts.
+
+## Transformation steps
+
+### Step 1: Rebuild the column names from the two header rows
+
+The top header row only says "Girls" or "Boys" over the first column of each group, so `fill()` carries it across the blank cells. Then I combine it with the rank number into one snake_case name per column, like `girls_rank_1`.
+
+```{r}
+#| label: build-header
+
+header <- tibble(
+  sex  = unlist(raw_names[1, ]),
+  rank = unlist(raw_names[2, ])
+) |>
+  fill(sex) |>   # "Girls" / "Boys" carried right over the blank cells
+  mutate(col_name = if_else(
+    is.na(sex),
+    "year",
+    paste(str_to_lower(sex), "rank", str_extract(rank, "\\d"), sep = "_")
+  ))
+
+header |> kable(caption = "How each column gets its new name")
+```
+
+### Step 2: Drop the header rows and apply the new names
+
+```{r}
+#| label: apply-names
+
+names_wide <- raw_names |>
+  slice(-(1:2)) |>              # the two header rows are now in the names
+  set_names(header$col_name)
+
+head(names_wide, 3) |> kable()
+```
+
+### Step 3: Reshape wide to long
+
+`pivot_longer()` turns the ten name columns into rows. Because each column name holds two variables, `names_pattern` pulls them apart: `girls_rank_1` becomes `sex = girls` and `rank = 1`.
+
+```{r}
+#| label: pivot
+
+names_tidy <- names_wide |>
+  pivot_longer(
+    cols      = -year,
+    names_to      = c("sex", "rank"),
+    names_pattern = "(girls|boys)_rank_(\\d)",
+    values_to     = "name"
+  ) |>
+  mutate(
+    year = as.integer(year),
+    rank = as.integer(rank),
+    sex  = str_to_title(sex),    # "girls" -> "Girls"
+    name = str_squish(name)      # remove any stray spaces from the copy
+  ) |>
+  arrange(year, sex, rank)
+
+head(names_tidy, 10) |> kable(caption = "Tidy data: one row per year, sex, and rank")
+```
+
+### Step 4: Check for missing or inconsistent values
+
+There are no blanks in this table, but I check rather than assume. Every year should have exactly five girls' names and five boys' names, ranks 1 to 5, and no name should appear twice in the same year and sex.
+
+```{r}
+#| label: checks
+
+checks <- tibble(
+  check  = c("Missing names",
+             "Years without exactly 5 names per sex",
+             "Same name twice in one year and sex",
+             "Years covered"),
+  result = c(
+    sum(is.na(names_tidy$name) | names_tidy$name == ""),
+    names_tidy |> count(year, sex) |> filter(n != 5) |> nrow(),
+    names_tidy |> count(year, sex, name) |> filter(n > 1) |> nrow(),
+    paste(min(names_tidy$year), "to", max(names_tidy$year))
+  )
+)
+checks |> kable(col.names = c("Check", "Result"))
+
+stopifnot(
+  !any(is.na(names_tidy$name)),
+  all(count(names_tidy, year, sex)$n == 5)
+)
+```
+
+All checks pass, so no rows needed fixing. The tidy table has **`r nrow(names_tidy)` rows** (100 years × 2 sexes × 5 ranks) and 4 columns.
+
+## Analytical methods
+
+All analysis uses `names_tidy`.
+
+- **Streaks:** for each name and sex, I sort the years it appeared in the top five and start a new streak whenever there's a gap. A streak's length is the number of consecutive years. A name can have more than one streak if it dropped out and came back.
+- **Turnover:** for each year after 1926, I count how many names in that year's top five weren't in the previous year's top five. That's the number of **new entries**. Summing new entries by sex, and by decade, shows how fast each list changes.
+- **Variety:** the number of different names that ever reached the top five for each sex.
+
+No part of this analysis uses randomness, so no seed is needed.
+
+```{r}
+#| label: streaks
+
+streaks <- names_tidy |>
+  arrange(sex, name, year) |>
+  group_by(sex, name) |>
+  mutate(streak_id = cumsum(c(1, diff(year) != 1))) |>   # new id after any gap
+  group_by(sex, name, streak_id) |>
+  summarise(
+    start     = min(year),
+    end       = max(year),
+    years     = n(),
+    best_rank = min(rank),
+    .groups   = "drop"
+  )
+
+turnover <- names_tidy |>
+  group_by(sex, year) |>
+  summarise(top5 = list(name), .groups = "drop") |>
+  arrange(sex, year) |>
+  group_by(sex) |>
+  mutate(new_entries = map2_int(
+    top5, lag(top5),
+    \(now, before) if (is.null(before)) NA_integer_ else length(setdiff(now, before))
+  )) |>
+  ungroup()
+```
+
+## Analysis 1: Which names stayed popular the longest?
+
+```{r}
+#| label: longest-table
+
+longest <- streaks |> arrange(desc(years), start) |> slice_head(n = 10)
+
+longest |>
+  transmute(
+    Name             = name,
+    Sex              = sex,
+    `Streak (years)` = years,
+    `Years`          = paste(start, "to", end),
+    `Best rank`      = best_rank
+  ) |>
+  kable(caption = "The 10 longest consecutive runs in the top five")
+```
+
+```{r}
+#| label: timeline
+#| fig-height: 9
+
+# Order names by the first year they appear, so the chart reads like a timeline
+name_order <- names_tidy |>
+  group_by(sex, name) |>
+  summarise(first = min(year), .groups = "drop")
+
+names_tidy |>
+  left_join(name_order, by = c("sex", "name")) |>
+  mutate(name = reorder(paste(name, sex), -first)) |>
+  ggplot(aes(x = year, y = name, fill = rank)) +
+  geom_tile(height = 0.8) +
+  facet_wrap(~ sex, scales = "free_y") +
+  scale_y_discrete(labels = \(x) str_remove(x, " (Girls|Boys)$")) +
+  scale_fill_gradient(low = "#1f4463", high = "#bcd3e6", breaks = 1:5) +
+  labs(
+    title = "Every name that reached the top five, 1926 to 2025",
+    x     = "Year",
+    y     = NULL,
+    fill  = "Rank"
+  ) +
+  theme_p2() +
+  theme(axis.text.y = element_text(size = 8))
+```
+
+```{r}
+#| label: longest-values
+
+top_boy  <- streaks |> filter(sex == "Boys")  |> slice_max(years, n = 1)
+top_girl <- streaks |> filter(sex == "Girls") |> slice_max(years, n = 1)
+```
+
+**`r top_boy$name`** had the longest run of any name: **`r top_boy$years` straight years** in the boys' top five (`r top_boy$start` to `r top_boy$end`). The longest girls' run was **`r top_girl$name`** at **`r top_girl$years` years** (`r top_girl$start` to `r top_girl$end`). Nine of the ten longest streaks belong to boys' names, and the four longest (Michael, James, John, and Robert) all lasted more than 45 years. The longest active streak is Emma's: 24 years running, from 2002 through 2025.
+
+## Analysis 2: Do boys' and girls' names turn over at different rates?
+
+```{r}
+#| label: turnover-table
+
+turnover_summary <- turnover |>
+  group_by(sex) |>
+  summarise(
+    `Different names in top 5`  = n_distinct(unlist(top5)),
+    `New entries, 1927 to 2025` = sum(new_entries, na.rm = TRUE),
+    `Avg new entries per year`  = round(mean(new_entries, na.rm = TRUE), 2),
+    `Years with no change`      = sum(new_entries == 0, na.rm = TRUE),
+    `Median streak (years)`     = median(streaks$years[streaks$sex == first(sex)])
+  ) |>
+  rename(Sex = sex)
+
+turnover_summary |> kable(caption = "Turnover in the top five, by sex")
+```
+
+```{r}
+#| label: turnover-chart
+#| fig-height: 4.5
+
+turnover |>
+  filter(!is.na(new_entries)) |>
+  mutate(decade = paste0(year %/% 10 * 10, "s")) |>
+  group_by(sex, decade) |>
+  summarise(new_entries = sum(new_entries), .groups = "drop") |>
+  ggplot(aes(x = decade, y = new_entries, fill = sex)) +
+  geom_col(position = position_dodge(width = 0.8), width = 0.75) +
+  scale_fill_manual(values = sex_colors) +
+  scale_y_continuous(breaks = seq(0, 10, 2)) +
+  labs(
+    title    = "New names entering the top five, by decade",
+    subtitle = "1920s covers 1927 to 1929 only; 2020s covers 2020 to 2025",
+    x        = NULL,
+    y        = "New entries (names)",
+    fill     = NULL
+  ) +
+  theme_p2()
+```
+
+```{r}
+#| label: turnover-values
+
+girls_t <- turnover_summary |> filter(Sex == "Girls")
+boys_t  <- turnover_summary |> filter(Sex == "Boys")
+by_decade <- turnover |>
+  filter(!is.na(new_entries)) |>
+  mutate(decade = year %/% 10 * 10) |>
+  group_by(sex, decade) |>
+  summarise(n = sum(new_entries), .groups = "drop")
+boys_2010s  <- by_decade |> filter(sex == "Boys",  decade == 2010) |> pull(n)
+girls_2010s <- by_decade |> filter(sex == "Girls", decade == 2010) |> pull(n)
+```
+
+Girls' names turn over faster. Over 100 years, **`r girls_t[["Different names in top 5"]]` different girls' names** reached the top five, compared with **`r boys_t[["Different names in top 5"]]` boys' names**. Girls' lists had **`r girls_t[["New entries, 1927 to 2025"]]` new entries** versus **`r boys_t[["New entries, 1927 to 2025"]]`** for boys, and the boys' top five stayed exactly the same from one year to the next in `r boys_t[["Years with no change"]]` of 99 years, against `r girls_t[["Years with no change"]]` for girls.
+
+The decade chart shows that the gap isn't constant. Through the 1970s, girls' lists changed much more than boys'. Since the 1980s the pattern has mostly evened out, and in the 2010s it flipped: boys' names had `r boys_2010s` new entries while the girls' top five didn't add a single new name (`r girls_2010s` new entries). Emma, Olivia, Sophia, Isabella, and Ava held all five spots for the whole decade.
+
+## Conclusions
+
+- **The most durable names are boys' names.** Michael stayed in the top five for 62 consecutive years, and four boys' names lasted more than 45 years. The longest girls' streak was Mary's 42 years.
+- **Girls' names turn over more overall.** 45 different girls' names reached the top five, against 28 boys' names, and girls had 53 new entries to boys' 36.
+- **The difference has narrowed.** The gap came mostly from the mid-century decades. Recently it reversed, with a frozen girls' top five in the 2010s while boys' names churned.
+- **Short-lived trends vs. lasting favorites:** the median girls' streak is 6 years and the median boys' streak is 4. Boys have more short appearances (names that enter for a few years and leave), next to a handful of extremely long ones.
+
+**Limitations.** The table only has ranks, not birth counts, so it can't show how close the names were. A name at rank 5 might be just ahead of rank 6 or far ahead. Looking only at the top five also hides names that stayed popular just below it. A name like William can drop to rank 6 for a year and count as a broken streak.
+
+## AI Disclosure and Citation
+
+Claude (Opus 5.5, accessed through claude.ai) helped with this dataset, including copying the SSA table into the CSV and checking it against the page's own counts, writing the tidying and analysis code, drafting the write-up, and rendering the document to check the results.
+
+Anthropic. (2026). *Claude (Opus 5.5)* \[Large language model\]. <https://claude.ai/>. Accessed October 11, 2026.

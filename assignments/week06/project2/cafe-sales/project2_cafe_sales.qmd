@@ -1,0 +1,455 @@
+---
+title: "Project 2: Dirty Cafe Sales"
+subtitle: "DATA 607 · Project 2 · Dataset 3 of 3"
+author: "Dillon Leeper"
+date: today
+date-format: "MMMM D, YYYY"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-fold: true
+    code-tools: true
+    smooth-scroll: true
+    embed-resources: true
+    css: styles.css
+execute:
+  echo: true
+  warning: false
+  message: false
+---
+
+## Overview
+
+This dataset comes from a classmate's Discussion 5A post. It's a synthetic set of cafe transactions built for practicing data cleaning: one row per transaction, with blanks and placeholder text like "ERROR" and "UNKNOWN" scattered through every column. The questions from the post: **which payment methods are used most, which item sells the most, and who spends the most on what?** The post also suggested recovering missing values from the other columns, for example finding a missing price from the total and the quantity.
+
+```{r}
+#| label: setup
+
+library(tidyverse)   # reading, cleaning, reshaping, and charting
+library(knitr)       # kable() for tables
+library(scales)      # dollar() and percent() formatting
+
+# Shared look for all three Project 2 datasets
+theme_p2 <- function() {
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title       = element_text(face = "bold"),
+      panel.grid.minor = element_blank(),
+      legend.position  = "top"
+    )
+}
+accent <- "#2c5f8a"
+```
+
+## Data source
+
+"Cafe Sales: Dirty Data for Cleaning Training" by Ahmed Mohamed on [Kaggle](https://www.kaggle.com/datasets/ahmedmohamed2003/cafe-sales-dirty-data-for-cleaning-training/data). I downloaded `dirty_cafe_sales.csv` and committed it to GitHub unchanged.
+
+## Data structure before tidying
+
+Every column is read as text, and nothing is converted to `NA` on import, so the blanks and placeholder words stay visible until I decide what to do with them.
+
+```{r}
+#| label: load-data
+
+csv_url <- paste0(
+  "https://raw.githubusercontent.com/dillonleeper/",
+  "DATA-607/main/assignments/week06/project2/cafe-sales/dirty_cafe_sales.csv"
+)
+
+read_raw <- function(path) {
+  read_csv(path, col_types = cols(.default = col_character()), na = character())
+}
+raw_cafe <- tryCatch(read_raw(csv_url), error = function(e) read_raw("dirty_cafe_sales.csv"))
+
+glimpse(raw_cafe)
+```
+
+```{r}
+#| label: raw-sample
+
+raw_cafe |> slice(1:8) |> kable(caption = "First eight rows of the raw file")
+```
+
+The raw file has **`r comma(nrow(raw_cafe))` rows** and **`r ncol(raw_cafe)` columns**: `r paste(names(raw_cafe), collapse = ", ")`.
+
+Why it's untidy:
+
+- **Missing values come in three forms.** Some cells are blank, some say "ERROR", and some say "UNKNOWN". They all mean the value wasn't recorded.
+- **Numbers and dates are stored as text.** Because those placeholder words sit in the Quantity, Price, Total, and Date columns, none of them can be read as numbers or dates.
+- **Column names have spaces and capitals**, like `Price Per Unit`.
+- **The three amount columns depend on each other.** Total Spent should always equal Quantity × Price Per Unit, but each is stored on its own, so a gap in one isn't filled even when the other two are known.
+
+## Transformation steps
+
+### Step 1: Rename columns to snake_case
+
+```{r}
+#| label: rename
+
+cafe_named <- raw_cafe |>
+  rename_with(\(x) x |> str_to_lower() |> str_replace_all("\\s+", "_"))
+
+names(cafe_named)
+```
+
+### Step 2: Audit the problem values (wide to long)
+
+To count bad values across all columns at once, I pivot every column except the ID into one long `column` / `value` pair. That turns eight separate checks into one `count()`.
+
+```{r}
+#| label: audit
+
+placeholders <- c("", "ERROR", "UNKNOWN")
+
+audit_long <- cafe_named |>
+  pivot_longer(-transaction_id, names_to = "column", values_to = "value") |>
+  mutate(
+    value = str_trim(value),
+    issue = case_when(
+      value == ""        ~ "Blank",
+      value == "ERROR"   ~ "ERROR",
+      value == "UNKNOWN" ~ "UNKNOWN",
+      TRUE               ~ "OK"
+    )
+  )
+
+audit_table <- audit_long |>
+  count(column, issue) |>
+  pivot_wider(names_from = issue, values_from = n, values_fill = 0) |>
+  mutate(column = factor(column, levels = names(cafe_named)[-1])) |>
+  arrange(column) |>
+  relocate(column, OK)
+
+audit_table |> kable(caption = "Problem values per column, before cleaning")
+```
+
+Decision: all three placeholders mean the same thing, a value that wasn't recorded, so they all become `NA`.
+
+### Step 3: Convert placeholders to NA and fix the column types
+
+```{r}
+#| label: types
+
+cafe_typed <- cafe_named |>
+  mutate(
+    across(everything(), str_trim),
+    across(-transaction_id, \(x) if_else(x %in% placeholders, NA_character_, x)),
+    quantity         = as.integer(quantity),
+    price_per_unit   = as.numeric(price_per_unit),
+    total_spent      = as.numeric(total_spent),
+    transaction_date = ymd(transaction_date)
+  )
+
+missing_before <- cafe_typed |> summarise(across(everything(), \(x) sum(is.na(x))))
+```
+
+### Step 4: Recover missing values from the other columns
+
+The classmate's post pointed out that some gaps can be filled from other columns. I use three rules, all documented here:
+
+1.  **Every item has one fixed price.** I learn the menu from rows where both the item and the price are recorded. A missing price is filled from the item.
+2.  **A price that belongs to only one item identifies that item.** If two items share a price, I can't tell them apart, so those stay missing.
+3.  **Total = Quantity × Price.** When any two of the three are known, the third is calculated.
+
+The rules depend on each other: finding a price from the total can then reveal the item. So I run them in a loop until a pass changes nothing.
+
+```{r}
+#| label: menu
+
+menu <- cafe_typed |>
+  filter(!is.na(item), !is.na(price_per_unit)) |>
+  count(item, price_per_unit) |>
+  group_by(item) |>
+  slice_max(n, n = 1, with_ties = FALSE) |>   # the most common price per item
+  ungroup() |>
+  select(item, menu_price = price_per_unit)
+
+# Prices that point to exactly one item
+unique_prices <- menu |>
+  add_count(menu_price, name = "items_at_price") |>
+  filter(items_at_price == 1) |>
+  select(menu_price, price_item = item)
+
+menu |>
+  left_join(unique_prices, by = "menu_price") |>
+  transmute(Item = item, `Menu price` = dollar(menu_price),
+            `Identifies the item?` = if_else(is.na(price_item), "No, shared price", "Yes")) |>
+  arrange(`Menu price`) |>
+  kable(caption = "Menu learned from complete rows")
+```
+
+```{r}
+#| label: recover
+
+recover_once <- function(df) {
+  df |>
+    left_join(menu, by = "item") |>
+    left_join(unique_prices, by = c("price_per_unit" = "menu_price")) |>
+    mutate(
+      price_per_unit = coalesce(price_per_unit, menu_price),         # rule 1
+      item           = coalesce(item, price_item),                   # rule 2
+      total_spent    = coalesce(total_spent, quantity * price_per_unit),
+      quantity       = coalesce(quantity, as.integer(round(total_spent / price_per_unit))),
+      price_per_unit = coalesce(price_per_unit, total_spent / quantity)  # rule 3
+    ) |>
+    select(-menu_price, -price_item)
+}
+
+cafe_recovered <- cafe_typed
+repeat {
+  before <- sum(is.na(cafe_recovered))
+  cafe_recovered <- recover_once(cafe_recovered)
+  if (sum(is.na(cafe_recovered)) == before) break
+}
+
+missing_after <- cafe_recovered |> summarise(across(everything(), \(x) sum(is.na(x))))
+```
+
+### Step 5: Label the categories that can't be recovered
+
+Payment method and location can't be worked out from anything else in the row. Instead of guessing or dropping those transactions, I label them "Unknown" so they stay in the totals and show up as their own group.
+
+```{r}
+#| label: categories
+
+cafe_clean <- cafe_recovered |>
+  mutate(
+    payment_method = replace_na(payment_method, "Unknown"),
+    location       = replace_na(location, "Unknown")
+  )
+```
+
+### Step 6: Check the result (long and back to wide)
+
+To compare how much each step fixed, I stack the before and after missing counts into one long table, then spread them back out with one column per stage.
+
+```{r}
+#| label: before-after
+
+recovery <- bind_rows(
+  missing_before |> mutate(stage = "Missing before"),
+  missing_after  |> mutate(stage = "Missing after recovery"),
+  cafe_clean |> summarise(across(everything(), \(x) sum(is.na(x)))) |> mutate(stage = "Missing in final data")
+) |>
+  pivot_longer(-stage, names_to = "column", values_to = "missing") |>
+  pivot_wider(names_from = stage, values_from = missing) |>
+  filter(column != "transaction_id") |>
+  mutate(Recovered = `Missing before` - `Missing after recovery`)
+
+recovery |> kable(caption = "Missing values per column at each stage")
+
+# Every row with all three amounts must satisfy total = quantity x price
+complete_amounts <- cafe_clean |> filter(!is.na(quantity), !is.na(price_per_unit), !is.na(total_spent))
+mismatches <- complete_amounts |> filter(abs(total_spent - quantity * price_per_unit) > 0.005)
+```
+
+Of the `r comma(nrow(complete_amounts))` rows with all three amounts, **`r nrow(mismatches)`** break the rule Total = Quantity × Price, so the recovered values are consistent with the recorded ones.
+
+Rows still missing an item or an amount after recovery can't be fixed without guessing. Most of the remaining missing items are rows priced at \$3 or \$4, where two items share the price. Missing transaction dates are left as `NA` because none of the analyses use the date. For each analysis I use every row that has the fields that analysis needs, and say how many rows that is.
+
+## Analytical methods
+
+All analysis uses `cafe_clean`.
+
+- **Payment methods:** share of transactions and share of revenue for each method. "Unknown" is shown as its own group rather than dropped.
+- **Top items:** total units sold and total revenue per item.
+- **Who spends the most on what:** there's no customer ID, so "who" can only mean a group of transactions. I compare the average amount spent per transaction across payment methods and locations, overall and by item.
+- No part of this analysis uses randomness, so no seed is needed.
+
+## Analysis 1: Which payment methods are used most?
+
+```{r}
+#| label: payments
+
+payments <- cafe_clean |>
+  group_by(payment_method) |>
+  summarise(
+    transactions = n(),
+    revenue      = sum(total_spent, na.rm = TRUE),
+    .groups      = "drop"
+  ) |>
+  mutate(
+    share_txn     = transactions / sum(transactions),
+    share_revenue = revenue / sum(revenue)
+  ) |>
+  arrange(desc(transactions))
+
+payments |>
+  transmute(
+    `Payment method`     = payment_method,
+    Transactions         = comma(transactions),
+    `Share of transactions` = percent(share_txn, accuracy = 0.1),
+    Revenue              = dollar(revenue),
+    `Share of revenue`   = percent(share_revenue, accuracy = 0.1)
+  ) |>
+  kable(caption = "Transactions and revenue by payment method")
+
+known_pay <- payments |> filter(payment_method != "Unknown")
+```
+
+```{r}
+#| label: payments-chart
+#| fig-height: 4
+
+payments |>
+  mutate(payment_method = fct_reorder(payment_method, transactions),
+         known = payment_method != "Unknown") |>
+  ggplot(aes(x = transactions, y = payment_method, fill = known)) +
+  geom_col(width = 0.65) +
+  geom_text(aes(label = percent(share_txn, accuracy = 0.1)), hjust = -0.15, size = 3.8) +
+  scale_fill_manual(values = c(`TRUE` = accent, `FALSE` = "#b8c2cc"), guide = "none") +
+  scale_x_continuous(labels = comma, expand = expansion(mult = c(0, 0.12))) +
+  labs(title = "Transactions by payment method", x = "Transactions", y = NULL) +
+  theme_p2()
+```
+
+Among transactions with a recorded method, **`r known_pay$payment_method[1]`** is used most often (`r comma(known_pay$transactions[1])` transactions), followed by `r known_pay$payment_method[2]` (`r comma(known_pay$transactions[2])`) and `r known_pay$payment_method[3]` (`r comma(known_pay$transactions[3])`). The three are close: the gap between the most and least used is `r percent((known_pay$transactions[1] - known_pay$transactions[3]) / sum(known_pay$transactions), accuracy = 0.1)` of known transactions. The bigger story is the **Unknown** group, `r percent(payments$share_txn[payments$payment_method == "Unknown"], accuracy = 0.1)` of all transactions, which is large enough that the ranking of the three known methods could change if those were recorded.
+
+## Analysis 2: Which item sells the most?
+
+```{r}
+#| label: items
+
+items <- cafe_clean |>
+  filter(!is.na(item)) |>
+  group_by(item) |>
+  summarise(
+    transactions = n(),
+    units        = sum(quantity, na.rm = TRUE),
+    revenue      = sum(total_spent, na.rm = TRUE),
+    .groups      = "drop"
+  ) |>
+  left_join(menu, by = "item") |>
+  arrange(desc(units))
+
+items |>
+  transmute(
+    Item         = item,
+    `Menu price` = dollar(menu_price),
+    `Units sold` = comma(units),
+    Revenue      = dollar(revenue),
+    `Share of revenue` = percent(revenue / sum(revenue), accuracy = 0.1)
+  ) |>
+  kable(caption = "Units and revenue by item (rows with a known item)")
+
+items_missing <- sum(is.na(cafe_clean$item))
+top_units   <- items |> slice_max(units, n = 1)
+top_revenue <- items |> slice_max(revenue, n = 1)
+```
+
+```{r}
+#| label: items-chart
+#| fig-height: 4.5
+
+items |>
+  select(item, `Units sold` = units, `Revenue ($)` = revenue) |>
+  pivot_longer(-item, names_to = "measure", values_to = "value") |>
+  ggplot(aes(x = value, y = reorder(paste(item, measure, sep = "___"), value))) +
+  geom_col(fill = accent, width = 0.65) +
+  facet_wrap(~ measure, scales = "free") +
+  scale_y_discrete(labels = \(x) str_remove(x, "___.*$")) +
+  scale_x_continuous(labels = comma) +
+  labs(title = "Units sold and revenue by item", x = NULL, y = NULL) +
+  theme_p2()
+```
+
+```{r}
+#| label: items-values
+
+lowest_units <- items |> slice_min(units, n = 1)
+```
+
+By units, the most bought item is **`r top_units$item`** (`r comma(top_units$units)` units). By revenue it's **`r top_revenue$item`** (`r dollar(top_revenue$revenue)`). Those can differ because prices range from `r dollar(min(menu$menu_price))` to `r dollar(max(menu$menu_price))`: a cheap item can sell the most units while a pricier one brings in the most money. These totals leave out the `r comma(items_missing)` transactions whose item couldn't be recovered.
+
+## Analysis 3: Who spends the most on what?
+
+```{r}
+#| label: spend-groups
+
+spend_by <- function(df, group) {
+  df |>
+    filter(!is.na(total_spent)) |>
+    group_by({{ group }}) |>
+    summarise(
+      transactions  = n(),
+      avg_spend     = mean(total_spent),
+      total_revenue = sum(total_spent),
+      .groups       = "drop"
+    ) |>
+    arrange(desc(avg_spend))
+}
+
+spend_pay <- spend_by(cafe_clean, payment_method)
+spend_loc <- spend_by(cafe_clean, location)
+
+bind_rows(
+  spend_pay |> rename(group = payment_method) |> mutate(by = "Payment method"),
+  spend_loc |> rename(group = location) |> mutate(by = "Location")
+) |>
+  transmute(
+    `Grouped by`          = by,
+    Group                 = group,
+    Transactions          = comma(transactions),
+    `Avg spend per transaction` = dollar(avg_spend, accuracy = 0.01),
+    Revenue               = dollar(total_revenue)
+  ) |>
+  kable(caption = "Average spend per transaction")
+```
+
+```{r}
+#| label: spend-heatmap
+#| fig-height: 4.5
+
+item_pay <- cafe_clean |>
+  filter(!is.na(item), !is.na(total_spent), payment_method != "Unknown") |>
+  group_by(item, payment_method) |>
+  summarise(avg_spend = mean(total_spent), transactions = n(), .groups = "drop")
+
+item_pay |>
+  mutate(item = fct_reorder(item, avg_spend)) |>
+  ggplot(aes(x = payment_method, y = item, fill = avg_spend)) +
+  geom_tile(color = "white", linewidth = 1) +
+  geom_text(aes(label = dollar(avg_spend, accuracy = 0.01)), size = 3.6) +
+  scale_fill_gradient(low = "#eaf2f8", high = "#5b8db8", labels = dollar) +
+  labs(
+    title = "Average spend per transaction, by item and payment method",
+    x     = NULL,
+    y     = NULL,
+    fill  = "Avg spend"
+  ) +
+  theme_p2() +
+  theme(panel.grid = element_blank())
+```
+
+```{r}
+#| label: spend-values
+
+pay_known <- spend_pay |> filter(payment_method != "Unknown")
+loc_known <- spend_loc |> filter(location != "Unknown")
+pay_gap   <- max(pay_known$avg_spend) - min(pay_known$avg_spend)
+loc_gap   <- max(loc_known$avg_spend) - min(loc_known$avg_spend)
+item_spread <- item_pay |>
+  group_by(item) |>
+  summarise(gap = max(avg_spend) - min(avg_spend), .groups = "drop")
+```
+
+Across payment methods, average spend per transaction runs from `r dollar(min(pay_known$avg_spend), accuracy = 0.01)` to `r dollar(max(pay_known$avg_spend), accuracy = 0.01)`, a gap of only `r dollar(pay_gap, accuracy = 0.01)`. In-store and takeaway differ by `r dollar(loc_gap, accuracy = 0.01)`. Location is missing even more often than payment method: `r comma(spend_loc$transactions[spend_loc$location == "Unknown"])` transactions with a recorded total have no location. The heatmap shows the same thing item by item: what someone spends depends almost entirely on **what** they buy, not how they pay. Within any one item, the averages across payment methods differ by at most `r dollar(max(item_spread$gap), accuracy = 0.01)`.
+
+## Conclusions
+
+- **Payment methods are close to evenly split.** `r known_pay$payment_method[1]` leads among recorded methods with `r comma(known_pay$transactions[1])` transactions, but `r percent(payments$share_txn[payments$payment_method == "Unknown"], accuracy = 0.1)` of transactions have no method recorded, which is the biggest problem for this question.
+- **`r top_units$item` sells the most units; `r top_revenue$item` brings in the most revenue.** Price matters as much as volume when ranking items.
+- **Spending is driven by the item, not the customer group.** Average spend barely moves across payment methods (`r dollar(pay_gap, accuracy = 0.01)` range) or locations (`r dollar(loc_gap, accuracy = 0.01)`).
+- **Cleaning recovered a large share of the gaps.** The arithmetic and menu rules filled `r comma(sum(recovery$Recovered))` missing values without guessing, and the recovered rows all satisfy Total = Quantity × Price.
+
+**Limitations.** The data is synthetic, so these patterns describe how the dataset was generated more than real cafe behavior. There's no customer ID, so "who spends the most" can only be answered by payment method and location. Items that share a price can't be recovered from the price alone, and payment method and location can't be recovered at all.
+
+## AI Disclosure and Citation
+
+Claude (Opus 5.5, accessed through claude.ai) helped with this dataset, including writing the cleaning, recovery, and analysis code, drafting the write-up, and rendering the document to check the results.
+
+Anthropic. (2026). *Claude (Opus 5.5)* \[Large language model\]. <https://claude.ai/>. Accessed October 11, 2026.

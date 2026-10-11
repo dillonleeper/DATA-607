@@ -1,0 +1,512 @@
+---
+title: "Project 2: Pokémon Base Set Population Report"
+subtitle: "DATA 607 · Project 2 · Dataset 1 of 3"
+author: "Dillon Leeper"
+date: today
+date-format: "MMMM D, YYYY"
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-location: left
+    toc-depth: 3
+    code-fold: true
+    code-tools: true
+    smooth-scroll: true
+    embed-resources: true
+    css: styles.css
+execute:
+  echo: true
+  warning: false
+  message: false
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+## Overview
+
+This is the dataset from my own Discussion 5A post. A population report
+counts how many copies of each trading card have been graded at each
+grade. The questions from my post: **what share of each card's graded
+copies earned a 10 (its gem rate), does 1st Edition grade better than
+later printings, and which cards are hardest to get a 10 on?**
+
+## Data source
+
+The data comes from PriceCharting's population report for the Pokémon
+Base Set (<https://www.pricecharting.com/pop/set/pokemon-base-set>).
+Grading companies like PSA and CGC score cards on a 1 to 10 scale, and a
+population report counts how many copies of each card have received each
+grade. PriceCharting combines PSA and CGC counts into one number and
+folds half grades (for example 8.5) into the nearest whole grade below.
+
+I copied the table into `pokemon_base_set_pop_wide.csv` exactly as it
+appears on the page, sorted by popularity, on October 8, 2026. Nothing
+was cleaned by hand: counts keep their thousands commas, missing values
+keep their "-" character, and sealed products (booster boxes and packs)
+stay in the file. The CSV holds the first 141 rows of the report as the
+page loaded them, which are the most popular items, not all 466 items
+the site lists for the set.
+
+```{r setup}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(scales)
+library(knitr)
+
+# One shared look for every chart in this project
+theme_p2 <- function() {
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title       = element_text(face = "bold"),
+      panel.grid.minor = element_blank(),
+      legend.position  = "top"
+    )
+}
+
+# The holo vs. non-holo chart jitters its points, so fix the random seed
+set.seed(607)
+
+variant_colors <- c(
+  "1st Edition" = "#2c5f8a",
+  "Shadowless"  = "#c9701a",
+  "Unlimited"   = "#8a9bab"
+)
+```
+
+## Data structure before tidying
+
+Every column is read as text on purpose, so R does not guess types or
+turn the "-" characters into anything before I decide how to handle
+them.
+
+```{r import}
+csv_url <- paste0(
+  "https://raw.githubusercontent.com/dillonleeper/",
+  "DATA-607/main/assignments/week06/project2/pokemon/pokemon_base_set_pop_wide.csv"
+)
+
+# Try the GitHub copy first; fall back to the local copy if it can't be reached
+read_raw <- function(path) {
+  read_csv(
+    path,
+    col_types = cols(.default = col_character()),
+    na        = character()   # keep "-" and blanks exactly as they are
+  )
+}
+raw_pop <- tryCatch(read_raw(csv_url), error = function(e) read_raw("pokemon_base_set_pop_wide.csv"))
+
+glimpse(raw_pop)
+```
+
+The raw file has **`r nrow(raw_pop)` rows** and **`r ncol(raw_pop)`
+columns**: `r paste(names(raw_pop), collapse = ", ")`.
+
+```{r raw-sample}
+raw_pop |>
+  slice(c(1, 2, 8, 12)) |>
+  kable(caption = "Representative raw rows (wide format)")
+```
+
+What makes this untidy:
+
+- **Grade lives in the headers.** "Grade 6" through "Grade 10" are
+  values of one variable, so each row holds five separate observations.
+- **One column holds three variables.** "Charizard \[1st Edition\] #4"
+  packs the card name, the printing, and the card number into one
+  string.
+- **Total does not match the visible columns.** For unlimited Charizard,
+  grades 6 to 10 add up to 59,711 but Total says 99,255, because grades
+  1 to 5 are counted in Total without having their own columns.
+- **Numbers are stored as text.** Commas ("17,851") and the "-"
+  placeholder make every count column character data.
+- **Some rows are not cards at all.** Booster boxes and packs have "-"
+  in every column.
+
+## Transformation steps
+
+### Step 1: Rename columns to snake_case
+
+```{r rename}
+pop_named <- raw_pop |>
+  rename_with(~ .x |> str_to_lower() |> str_replace_all("\\s+", "_"))
+
+names(pop_named)
+```
+
+### Step 2: Handle missing values and convert counts to numbers
+
+Decision: a "-" in a count column means the report has no copies
+recorded at that grade. I first turn it into `NA`, then `parse_number()`
+strips the commas.
+
+```{r clean-values}
+dash_pattern <- "^[-\\u2212\\u2013]$"   # hyphen, minus sign, or en dash
+
+pop_numeric <- pop_named |>
+  mutate(across(
+    grade_6:total,
+    ~ parse_number(if_else(
+      str_detect(str_trim(.x), dash_pattern), NA_character_, str_trim(.x)
+    ))
+  ))
+
+pop_numeric |> filter(is.na(total)) |> select(card, total)
+```
+
+Decision: rows with a missing **Total** are sealed products or variants
+that have never been graded. They have no grade data to analyze, so I
+drop them. For the remaining cards, a missing grade count means zero
+graded copies at that grade, so it becomes 0.
+
+```{r drop-sealed}
+dropped_rows <- pop_numeric |> filter(is.na(total))
+
+pop_cards <- pop_numeric |>
+  filter(!is.na(total)) |>
+  mutate(across(grade_6:grade_10, ~ replace_na(.x, 0)))
+```
+
+This removes **`r nrow(dropped_rows)` rows**
+(`r paste(dropped_rows$card, collapse = "; ")`), leaving
+**`r nrow(pop_cards)` graded cards**.
+
+### Step 3: Split the card column into name, variant, and number
+
+`extract()` uses a regular expression with three groups: the name, an
+optional bracketed variant, and the card number after "\#". A card with
+no bracket is the regular Unlimited printing.
+
+```{r split-card}
+pop_split <- pop_cards |>
+  extract(
+    card,
+    into   = c("card_name", "variant", "card_number"),
+    regex  = "^(.*?)\\s*(?:\\[(.*)\\])?\\s*#(\\d+)$",
+    remove = FALSE
+  ) |>
+  mutate(
+    variant     = coalesce(na_if(variant, ""), "Unlimited"),
+    card_number = as.integer(card_number),
+    rarity      = if_else(card_number <= 16, "Holo rare", "Non-holo")
+  )
+
+# Every card must parse cleanly
+stopifnot(!any(is.na(pop_split$card_name)), !any(is.na(pop_split$card_number)))
+
+pop_split |> count(variant, sort = TRUE) |>
+  kable(col.names = c("Variant", "Cards"), caption = "Printings after the split")
+```
+
+Cards numbered 1 to 16 are the Base Set holo rares, so I add a `rarity`
+column from the card number.
+
+### Step 4: Recover the hidden grades 1 to 5
+
+Total includes grades 1 to 5, which have no columns. Instead of ignoring
+the mismatch, I compute the missing count so every graded copy is
+accounted for.
+
+```{r recover-low}
+pop_full <- pop_split |>
+  mutate(grade_1_to_5 = total - (grade_6 + grade_7 + grade_8 + grade_9 + grade_10))
+
+# A negative count would mean the source columns are inconsistent
+stopifnot(all(pop_full$grade_1_to_5 >= 0))
+
+pop_full |>
+  filter(card == "Charizard #4") |>
+  select(card, grade_6:grade_10, grade_1_to_5, total) |>
+  kable(format.args = list(big.mark = ","),
+        caption = "Unlimited Charizard: grades 1 to 5 explain the gap")
+```
+
+### Step 5: Pivot from wide to long
+
+Each row becomes one card at one grade. Total is now redundant (it
+equals the sum of `population` for each card), so I check that and then
+leave it out.
+
+```{r pivot}
+grade_levels <- c("1-5", "6", "7", "8", "9", "10")
+
+pop_tidy <- pop_full |>
+  pivot_longer(
+    cols         = c(grade_1_to_5, grade_6:grade_10),
+    names_to     = "grade",
+    names_prefix = "grade_",
+    values_to    = "population"
+  ) |>
+  mutate(
+    grade = str_replace(grade, "_to_", "-"),
+    grade = factor(grade, levels = grade_levels)
+  ) |>
+  select(card, card_name, variant, card_number, rarity, grade, population)
+
+# The long data must add back up to the original totals
+check <- pop_tidy |>
+  group_by(card) |>
+  summarise(population = sum(population)) |>
+  left_join(select(pop_full, card, total), by = "card")
+stopifnot(all(check$population == check$total))
+
+head(pop_tidy, 12) |> kable(caption = "Tidy data: one row per card per grade")
+```
+
+The tidy table has **`r nrow(pop_tidy)` rows** (`r nrow(pop_full)` cards
+× 6 grade groups) and 7 columns.
+
+## Analytical methods
+
+All analysis below uses only `pop_tidy`.
+
+- **Gem rate** = grade 10 copies ÷ all graded copies of that card. It is
+  the share of submissions that came back a perfect 10.
+- **Hardest 10s** ranks cards by lowest gem rate. I only rank cards with
+  at least 500 graded copies so a card with 3 graded copies cannot top
+  the list.
+- **Printing comparison** uses the cards that appear in all three main
+  printings (1st Edition, Shadowless, Unlimited). I report both the
+  pooled gem rate (all copies together) and the median card's gem rate,
+  because one huge card (unlimited Charizard) can dominate a pooled
+  number.
+- **Holo vs. non-holo** compares pooled gem rates by rarity. Cards #1 to
+  16 are the holo rares.
+- The only randomness is the jitter in the holo chart, so
+  `set.seed(607)` in the setup chunk keeps it the same on every render.
+
+```{r gem-rate}
+gem <- pop_tidy |>
+  group_by(card, card_name, variant, card_number, rarity) |>
+  summarise(
+    graded   = sum(population),
+    grade_10 = sum(population[grade == "10"]),
+    .groups  = "drop"
+  ) |>
+  mutate(gem_rate = grade_10 / graded)
+
+overall_rate <- sum(gem$grade_10) / sum(gem$graded)
+```
+
+Across all `r nrow(gem)` cards there are **`r comma(sum(gem$graded))`
+graded copies**, and **`r percent(overall_rate, accuracy = 0.1)`** of
+them are 10s.
+
+## Analysis 1: Which cards are hardest to get a 10 on?
+
+```{r hardest-table}
+hardest <- gem |>
+  filter(graded >= 500) |>
+  arrange(gem_rate) |>
+  slice_head(n = 10)
+
+hardest |>
+  transmute(
+    Card              = card,
+    Rarity            = rarity,
+    `Graded copies`   = comma(graded),
+    `Grade 10 copies` = comma(grade_10),
+    `Gem rate (%)`    = percent(gem_rate, accuracy = 0.01)
+  ) |>
+  kable(caption = "10 lowest gem rates (cards with 500+ graded copies)")
+```
+
+```{r hardest-chart}
+#| fig-height: 5
+hardest |>
+  mutate(card = reorder(card, -gem_rate)) |>
+  ggplot(aes(x = gem_rate, y = card, fill = variant)) +
+  geom_col() +
+  scale_x_continuous(labels = percent_format(accuracy = 0.1)) +
+  scale_fill_manual(values = variant_colors, drop = FALSE) +
+  labs(
+    title = "The hardest Base Set cards to grade a 10",
+    x     = "Gem rate (share of graded copies that earned a 10)",
+    y     = NULL,
+    fill  = "Printing"
+  ) +
+  theme_p2()
+```
+
+Every card on this list is a holo rare. Unlimited Charizard has the
+lowest gem rate at
+**`r percent(hardest$gem_rate[1], accuracy = 0.01)`**: only
+`r comma(hardest$grade_10[1])` 10s out of `r comma(hardest$graded[1])`
+graded copies. Eight of the ten are Shadowless printings, a short early
+print run of the set. Holo foil scratches easily and the holo window
+shows every flaw, which fits what collectors say about these cards.
+
+## Analysis 2: Does 1st Edition grade better than Shadowless or Unlimited?
+
+```{r printing-compare}
+main_printings <- c("1st Edition", "Shadowless", "Unlimited")
+
+# Cards that exist in all three main printings
+in_all_three <- gem |>
+  filter(variant %in% main_printings) |>
+  count(card_name) |>
+  filter(n == 3) |>
+  pull(card_name)
+
+printing_summary <- gem |>
+  filter(variant %in% main_printings, card_name %in% in_all_three) |>
+  group_by(variant) |>
+  summarise(
+    cards           = n(),
+    graded          = sum(graded),
+    grade_10        = sum(grade_10),
+    median_gem_rate = median(gem_rate),
+    .groups         = "drop"
+  ) |>
+  mutate(pooled_gem_rate = grade_10 / graded) |>
+  arrange(desc(pooled_gem_rate))
+
+printing_summary |>
+  transmute(
+    Printing                  = variant,
+    Cards                     = cards,
+    `Graded copies`           = comma(graded),
+    `Grade 10 copies`         = comma(grade_10),
+    `Pooled gem rate (%)`     = percent(pooled_gem_rate, accuracy = 0.1),
+    `Median card gem rate (%)`= percent(median_gem_rate, accuracy = 0.1)
+  ) |>
+  kable(caption = "Gem rate by printing (cards found in all three printings)")
+```
+
+```{r printing-chart}
+#| fig-height: 5
+pop_tidy |>
+  filter(variant %in% main_printings, card_name %in% in_all_three) |>
+  group_by(variant, grade) |>
+  summarise(population = sum(population), .groups = "drop") |>
+  group_by(variant) |>
+  mutate(share = population / sum(population)) |>
+  ungroup() |>
+  ggplot(aes(x = grade, y = share, fill = variant)) +
+  geom_col(position = "dodge") +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  scale_fill_manual(values = variant_colors) +
+  labs(
+    title = "Grade distribution by printing",
+    subtitle = paste(length(in_all_three), "cards found in all three printings"),
+    x     = "Grade",
+    y     = "Share of graded copies",
+    fill  = "Printing"
+  ) +
+  theme_p2()
+```
+
+```{r printing-p}
+first_ed <- filter(printing_summary, variant == "1st Edition")
+shadow   <- filter(printing_summary, variant == "Shadowless")
+unlim    <- filter(printing_summary, variant == "Unlimited")
+```
+
+For the `r length(in_all_three)` cards that exist in all three
+printings, 1st Edition has the highest pooled gem rate at
+**`r percent(first_ed$pooled_gem_rate, accuracy = 0.1)`**, compared with
+`r percent(shadow$pooled_gem_rate, accuracy = 0.1)` for Shadowless and
+`r percent(unlim$pooled_gem_rate, accuracy = 0.1)` for Unlimited. The
+median card tells the same story for 1st Edition
+(`r percent(first_ed$median_gem_rate, accuracy = 0.1)`), but Shadowless
+has the lowest median
+(`r percent(shadow$median_gem_rate, accuracy = 0.1)`). Unlimited's
+pooled rate is pulled down mostly by unlimited Charizard, which alone
+has `r comma(filter(gem, card == "Charizard #4")$graded)` graded copies.
+
+One reason 1st Edition may grade better: owners of the most valuable
+printing tend to submit only their best-looking copies, so the
+submissions themselves are pre-screened. The data cannot separate print
+quality from that selection.
+
+## Analysis 3: Holo rares vs. non-holo cards
+
+```{r rarity}
+rarity_summary <- gem |>
+  group_by(rarity) |>
+  summarise(
+    cards    = n(),
+    graded   = sum(graded),
+    grade_10 = sum(grade_10),
+    .groups  = "drop"
+  ) |>
+  mutate(gem_rate = grade_10 / graded)
+
+rarity_summary |>
+  transmute(
+    Rarity            = rarity,
+    Cards             = cards,
+    `Graded copies`   = comma(graded),
+    `Grade 10 copies` = comma(grade_10),
+    `Gem rate (%)`    = percent(gem_rate, accuracy = 0.1)
+  ) |>
+  kable(caption = "Gem rate by rarity")
+```
+
+```{r rarity-chart}
+#| fig-height: 4
+gem |>
+  filter(graded >= 500) |>
+  ggplot(aes(x = rarity, y = gem_rate, color = rarity)) +
+  geom_boxplot(outlier.shape = NA, width = 0.5) +
+  geom_jitter(width = 0.15, alpha = 0.6) +
+  scale_y_continuous(labels = percent_format(accuracy = 1)) +
+  scale_color_manual(values = c("Holo rare" = "#2c5f8a", "Non-holo" = "#8a9bab")) +
+  labs(
+    title = "Holo rares rarely come back a 10",
+    x     = NULL,
+    y     = "Gem rate per card",
+    color = "Rarity"
+  ) +
+  theme_p2()
+```
+
+```{r rarity-values}
+holo     <- filter(rarity_summary, rarity == "Holo rare")
+non_holo <- filter(rarity_summary, rarity == "Non-holo")
+```
+
+Holo rares gem at **`r percent(holo$gem_rate, accuracy = 0.1)`**, while
+non-holo cards gem at
+**`r percent(non_holo$gem_rate, accuracy = 0.1)`**, about
+`r round(non_holo$gem_rate / holo$gem_rate)` times higher. This is the
+largest difference in the project and explains why the hardest-10 list
+is all holos.
+
+## Conclusions
+
+- Only `r percent(overall_rate, accuracy = 0.1)` of the
+  `r comma(sum(gem$graded))` graded Base Set copies in this file are
+  10s.
+- Rarity matters more than printing: holo rares gem at
+  `r percent(holo$gem_rate, accuracy = 0.1)` versus
+  `r percent(non_holo$gem_rate, accuracy = 0.1)` for non-holos.
+- Unlimited Charizard is the hardest 10 in the set at
+  `r percent(hardest$gem_rate[1], accuracy = 0.01)`, which helps explain
+  why a PSA 10 commands such a premium.
+- 1st Edition copies earn 10s more often than Shadowless or Unlimited
+  copies of the same cards
+  (`r percent(first_ed$pooled_gem_rate, accuracy = 0.1)` pooled), though
+  submission bias likely plays a role.
+
+**Limitations.** PSA and CGC counts are combined, so the two companies'
+standards cannot be compared. Half grades are folded into whole grades.
+Some Unlimited holo counts look very low next to their Shadowless
+counterparts (for example Venusaur), which suggests the source may file
+many graded copies under a different printing label. The CSV covers the
+first 141 rows of the report rather than all 466 items. Sale prices were
+not part of this table, so the question of how scarcity at grade 10
+drives price is left for future work.
+
+## AI Disclosure and Citation
+
+Claude (Opus 5.5, accessed through claude.ai) helped with this dataset,
+including copying the population report into the CSV, and rendering the
+document to check the results.
+
+Anthropic. (2026). *Claude (Opus 5.5)* \[Large language model\].
+<https://claude.ai/>. Accessed October 8 and 11, 2026.
