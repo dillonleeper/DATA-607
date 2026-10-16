@@ -1,0 +1,23 @@
+[
+  {
+    "title": "Nineteen Eighty-Four",
+    "authors": ["George Orwell"],
+    "year": 1949,
+    "publisher": "Secker & Warburg",
+    "genre": "Dystopian"
+  },
+  {
+    "title": "Ready Player One",
+    "authors": ["Ernest Cline"],
+    "year": 2011,
+    "publisher": "Crown Publishing",
+    "genre": "Sci-fi / Dystopian"
+  },
+  {
+    "title": "Illuminae",
+    "authors": ["Amie Kaufman", "Jay Kristoff"],
+    "year": 2015,
+    "publisher": "Knopf",
+    "genre": "Sci-fi / YA"
+  }
+]
