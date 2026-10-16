@@ -1,0 +1,124 @@
+---
+title: "Week 07: Working with HTML and JSON"
+author: "Dillon Leeper"
+format:
+  html:
+    toc: true
+    theme: cosmo
+    code-overflow: wrap
+editor: source
+---
+
+## Overview
+
+For this assignment I'm going to write the same book data by hand in HTML and JSON, load both into R, and see if the two data frames come out the same.
+
+## Data Selection
+
+I picked three dystopian sci-fi books: Nineteen Eighty-Four by George Orwell, Ready Player One by Ernest Cline, and Illuminae by Amie Kaufman and Jay Kristoff. Illuminae has two authors, so that covers the multiple authors requirement. Along with title and authors, I'll record the year, publisher, and genre for each book.
+
+## Creating the Files
+
+I'll write both files by hand.
+
+The HTML file will be a basic table with a header row and one row per book. Since HTML tables don't have a list type, I'll put both Illuminae authors in one cell separated by a comma.
+
+The JSON file will be an array of three objects, one per book. For authors I'll use an array, so Illuminae will have two separate names.
+
+I'll put both files on my GitHub so R can read them from a URL and so they're public for RPubs.
+
+## Plan in R
+
+I'll use jsonlite to read the JSON with fromJSON(), and rvest to read the HTML with read_html() and html_table(). I'll show both tables with kable() so they can be compared side by side.
+
+Then I'll use identical() to check if the two data frames match. If anything is different, I'll look closer at the columns to figure out where. I'm not planning to clean or reshape the data first, since I want to compare what each format gives me as-is.
+
+## Setup
+
+```{r setup, message=FALSE, warning=FALSE}
+library(jsonlite)
+library(rvest)
+library(knitr)
+
+base_url <- "https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week07/"
+```
+
+## Load the JSON File
+
+```{r json}
+json_books <- fromJSON(paste0(base_url, "books.json"))
+
+kable(json_books, caption = "Books Data Parsed from JSON")
+```
+
+## Load the HTML File
+
+```{r html}
+html_books <- read_html(paste0(base_url, "books.html")) %>%
+  html_table() %>%
+  .[[1]]
+
+kable(html_books, caption = "Books Data Parsed from HTML Table")
+```
+
+## Are They Identical?
+
+```{r identical}
+identical(json_books, html_books)
+```
+
+They're not. Both tables show the same books, but R doesn't see them as identical. I checked a few things to find out why.
+
+### Object type
+
+```{r class}
+class(json_books)
+class(html_books)
+```
+
+fromJSON() gives a regular data frame, but html_table() gives a tibble.
+
+### Column names
+
+```{r names}
+names(json_books)
+names(html_books)
+```
+
+The JSON keys are lowercase (title) and the HTML headers are capitalized (Title). R is case-sensitive, so these count as different columns.
+
+### Authors column
+
+```{r authors}
+str(json_books$authors)
+str(html_books$Authors)
+```
+
+Since I used an array for authors in the JSON, R reads that column as a list, and Illuminae has two separate names. The HTML version is just text, with both names in one string.
+
+### Comparing each column
+
+```{r columns}
+data.frame(
+  column = c("title", "authors", "year", "publisher", "genre"),
+  values_match = c(
+    identical(json_books$title,     html_books$Title),
+    identical(json_books$authors,   html_books$Authors),
+    identical(json_books$year,      html_books$Year),
+    identical(json_books$publisher, html_books$Publisher),
+    identical(json_books$genre,     html_books$Genre)
+  )
+) %>% kable()
+```
+
+Title, year, publisher, and genre all match. Authors is the only column with different values, because of the list vs. text difference.
+
+## Conclusion
+
+The two data frames aren't identical, even though both files have the same three books. The differences come from the formats, not from mistakes in the data:
+
+- JSON loads as a data frame and HTML loads as a tibble.
+- The column names are capitalized differently, because that's how I wrote them in each file.
+- JSON can store multiple authors as a list, but an HTML table can only store them as text.
+
+Four of the five columns have the exact same values. So the same information written in two formats doesn't automatically give you the same data frame in R.
