@@ -1,0 +1,455 @@
+---
+title: "Week 9: NYT Article Search API"
+subtitle: "DATA 607 · Code Base"
+author: "Dillon Leeper"
+date: today
+date-format: "MMMM D, YYYY"
+format:
+  html:
+    theme: flatly
+    embed-resources: true
+    title-block-banner: true
+    toc: true
+    toc-location: left
+    toc-title: "Contents"
+    toc-depth: 2
+    smooth-scroll: true
+    code-fold: show
+    code-summary: "Show code"
+    code-tools:
+      source: false
+      toggle: true
+      caption: "Code"
+    code-copy: hover
+    highlight-style: github
+    df-print: kable
+    fig-align: center
+    fig-width: 8
+    fig-height: 4.5
+    fig-dpi: 150
+    include-in-header:
+      - text: |
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+          <style>
+            :root {
+              --ink: #1f2933;
+              --muted: #5f6b7a;
+              --accent: #2c5f8a;
+              --accent-soft: #e8f0f7;
+              --line: #e3e8ee;
+              --paper: #fbfaf7;
+            }
+            body {
+              font-family: "Lora", Georgia, serif;
+              font-size: 1.06rem;
+              line-height: 1.75;
+              color: var(--ink);
+              background: var(--paper);
+            }
+            h1, h2, h3, h4, .title, .subtitle, #TOC, .quarto-title-meta,
+            table, .code-tools-button, details > summary {
+              font-family: "Inter", system-ui, sans-serif;
+            }
+
+            /* title banner */
+            .quarto-title-banner {
+              background: linear-gradient(135deg, #1b3a57 0%, #2c5f8a 55%, #3f7fb0 100%) !important;
+              padding: 3.2rem 0 2.6rem !important;
+            }
+            .quarto-title-banner .title { font-weight: 700; letter-spacing: -0.02em; color: #fff; }
+            .quarto-title-banner .subtitle { color: rgba(255,255,255,0.82); font-weight: 500; font-size: 1.05rem; }
+            .quarto-title-meta-heading { color: var(--muted); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; }
+
+            /* headings */
+            h2 {
+              font-weight: 700;
+              font-size: 1.55rem;
+              color: var(--accent);
+              margin-top: 3rem;
+              padding-bottom: 0.4rem;
+              border-bottom: 2px solid var(--accent-soft);
+            }
+            h2.anchored { border-bottom: 2px solid var(--accent-soft); }
+            strong { color: #13293d; }
+
+            /* contents sidebar */
+            #TOC { font-size: 0.88rem; }
+            #TOC .nav-link { color: var(--muted); border-left: 2px solid transparent; padding-left: 0.6rem; }
+            #TOC .nav-link.active, #TOC .nav-link:hover { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+
+            /* tables */
+            table.table {
+              font-size: 0.9rem;
+              border-collapse: separate;
+              border-spacing: 0;
+              border: 1px solid var(--line);
+              border-radius: 10px;
+              overflow: hidden;
+              background: #fff;
+              box-shadow: 0 1px 3px rgba(16,24,40,0.06);
+              margin: 1.2rem 0 1.6rem;
+            }
+            table.table thead th {
+              background: var(--accent);
+              color: #fff;
+              font-weight: 600;
+              border: none;
+              padding: 0.65rem 0.9rem;
+            }
+            table.table tbody td { padding: 0.55rem 0.9rem; border-top: 1px solid var(--line); }
+            table.table tbody tr:nth-child(even) td { background: #f7f9fb; }
+            table.table tbody tr:hover td { background: var(--accent-soft); }
+
+            /* code */
+            div.sourceCode, pre.sourceCode {
+              background: #f5f7fa !important;
+              border: 1px solid var(--line);
+              border-radius: 10px;
+            }
+            code, pre { font-family: "JetBrains Mono", monospace; font-size: 0.84rem; }
+            details.code-fold > summary {
+              display: inline-block;
+              font-size: 0.78rem;
+              font-weight: 600;
+              color: var(--accent);
+              background: var(--accent-soft);
+              padding: 0.2rem 0.75rem;
+              border-radius: 999px;
+              margin-bottom: 0.4rem;
+              cursor: pointer;
+            }
+            pre:not(.sourceCode) {
+              background: #fff;
+              border-left: 3px solid var(--accent);
+              border-radius: 6px;
+              padding: 0.8rem 1rem;
+            }
+
+            /* figures and math */
+            .cell-output-display img {
+              border-radius: 10px;
+              background: #fff;
+              padding: 0.6rem;
+              box-shadow: 0 2px 10px rgba(16,24,40,0.08);
+            }
+            .math.display { overflow-x: auto; }
+
+            /* code tools dropdown */
+            .code-tools-button {
+              color: #fff !important;
+              border: 1px solid rgba(255,255,255,0.6) !important;
+              border-radius: 8px !important;
+              font-weight: 600;
+            }
+            .code-tools-button:hover { background: rgba(255,255,255,0.15) !important; }
+            .quarto-title-banner .dropdown-menu, #quarto-code-tools-menu + .dropdown-menu, .dropdown-menu {
+              background: #fff !important;
+              border: 1px solid var(--line) !important;
+              border-radius: 10px !important;
+              box-shadow: 0 8px 24px rgba(16,24,40,0.14) !important;
+              padding: 0.35rem !important;
+            }
+            .dropdown-menu .dropdown-item {
+              font-family: "Inter", system-ui, sans-serif !important;
+              font-size: 0.9rem !important;
+              font-weight: 600 !important;
+              color: var(--ink) !important;
+              border-radius: 6px;
+              padding: 0.5rem 0.9rem !important;
+            }
+            .dropdown-menu .dropdown-item:hover, .dropdown-menu .dropdown-item:focus {
+              background: var(--accent-soft) !important;
+              color: var(--accent) !important;
+            }
+
+            /* bullet lists */
+            ul li::marker { color: var(--accent); }
+
+            /* print / save as PDF: centered, no sidebar, no buttons */
+            @page { margin: 0.5in; }
+            @media print {
+              * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+              #quarto-sidebar-toc-left, #quarto-sidebar, #quarto-margin-sidebar, nav#TOC, #TOC,
+              .code-tools-button, .dropdown-menu, details.code-fold > summary, .code-copy-button {
+                display: none !important;
+              }
+              body, #quarto-content, .page-columns, .page-layout-article {
+                display: block !important;
+                background: var(--paper) !important;
+              }
+              main.content, #quarto-document-content, .quarto-title-banner .quarto-title, #title-block-header .quarto-title-meta {
+                grid-column: auto !important;
+                max-width: 7.5in !important;
+                width: 100% !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+              }
+              #title-block-header.quarto-title-block, .quarto-title-banner, header#title-block-header .quarto-title-banner {
+                display: block !important;
+                visibility: visible !important;
+                background: #2c5f8a linear-gradient(135deg, #1b3a57 0%, #2c5f8a 55%, #3f7fb0 100%) !important;
+                background-color: #2c5f8a !important;
+                padding: 1.8rem 1.6rem 1.5rem !important;
+                margin: 0 auto 1.2rem !important;
+                max-width: 7.5in !important;
+                border-radius: 12px !important;
+              }
+              .quarto-title-banner .quarto-title, .quarto-title-banner .quarto-title > div { display: block !important; max-width: none !important; }
+              .quarto-title-banner h1, .quarto-title-banner .title,
+              .quarto-title-banner p, .quarto-title-banner .subtitle {
+                display: block !important;
+                visibility: visible !important;
+                color: #fff !important;
+                opacity: 1 !important;
+              }
+              .quarto-title-banner .title { font-size: 1.9rem !important; margin: 0 0 0.3rem !important; }
+              .quarto-title-banner .subtitle { color: rgba(255,255,255,0.85) !important; font-size: 1rem !important; margin: 0 !important; }
+              .quarto-title-meta { margin-top: 0.4rem !important; }
+              h2 { break-after: avoid; page-break-after: avoid; margin-top: 1.6rem; }
+              .cell-output-display, table, figure, img { break-inside: avoid; page-break-inside: avoid; }
+              pre, code { white-space: pre-wrap !important; word-break: break-word; }
+              .cell-output-display img { box-shadow: none; }
+            }
+          </style>
+execute:
+  warning: false
+  message: false
+editor: visual
+---
+
+## Question
+
+**How has New York Times coverage of artificial intelligence changed from 2016 to 2026, and which sections cover it most?**
+
+In our Project 3 analysis, LLM / Gen AI skills appeared in about 1 in 4 data job postings. This document checks whether the news shows the same rise.
+
+## The API
+
+| | |
+|---|---|
+| API | Article Search API (NYT Developer Network) |
+| Endpoint | `https://api.nytimes.com/svc/search/v2/articlesearch.json` |
+| What it returns | Article metadata from 1851 to today: headline, abstract, publication date, section, byline, keywords |
+| Results per page | 10 articles |
+| Rate limit | 5 requests per minute, 500 per day |
+
+```{r}
+#| label: setup
+library(tidyverse)
+library(httr2)
+```
+
+## Authentication
+
+The key is stored in my `.Renviron` file as `NYT_API_KEY` (set with `usethis::edit_r_environ()`), so it never appears in this document. The key is sent as a URL parameter, so request objects and URLs are never printed.
+
+```{r}
+#| label: api-key
+api_key <- Sys.getenv("NYT_API_KEY")
+if (api_key == "") stop("NYT_API_KEY is not set. Add it to .Renviron and restart R.")
+```
+
+## Request Function
+
+Every request goes through one function. NYT allows about one request every 12 seconds, so the function waits 12 seconds before each call. If NYT still answers "429 Too Many Requests", it waits 60 seconds and tries again (up to 5 tries).
+
+```{r}
+#| label: request-function
+nyt_search <- function(...) {
+  Sys.sleep(12)                                              # NYT asks for ~12 seconds between calls
+  request("https://api.nytimes.com/svc/search/v2/articlesearch.json") |>
+    req_url_query(..., `api-key` = api_key) |>
+    req_retry(max_tries = 5, backoff = \(attempt) 60) |>     # on a 429, wait 60s and try again
+    req_perform() |>
+    resp_body_json()
+}
+```
+
+## Pull 1: AI Articles per Year
+
+| Parameter | Value |
+|---|---|
+| `q` | `"artificial intelligence"` (exact phrase) |
+| `begin_date` / `end_date` | January 1 to December 31 of each year, 2016 to 2026 |
+
+Each response includes `response$metadata$hits`, the total number of matching articles, so only the first page is needed for each year (11 requests).
+
+```{r}
+#| label: ai-per-year
+count_hits <- function(q = NULL, begin, end) {
+  nyt_search(q = q, begin_date = begin, end_date = end)$response$metadata$hits
+}
+
+ai_yearly <- tibble(year = 2016:2026) |>
+  mutate(ai_articles = map_int(year, \(y) count_hits(q = '"artificial intelligence"',
+                                                     begin = paste0(y, "0101"),
+                                                     end   = paste0(y, "1231"))))
+ai_yearly
+```
+
+## Pull 2: All Articles per Year
+
+To compare years fairly, AI articles are divided by everything the Times published that year. A request with no search term returns every article, but the API **caps `hits` at 10,000**, and a full year of the Times is far above that (every year came back as exactly 10,000). One month is under the cap (January 2025: 4,612), so totals are counted month by month and added up.
+
+That is 130 requests, about 30 minutes at NYT's rate limit, so this code was run once (November 1, 2026) and the result was saved to GitHub. The chunk below shows the code but is not re-run when the document is rendered.
+
+```{r}
+#| label: all-per-month
+#| eval: false
+monthly <- expand_grid(year = 2016:2026, month = 1:12) |>
+  mutate(start = make_date(year, month, 1),
+         end   = ceiling_date(start, "month") - days(1)) |>
+  filter(start <= today()) |>                                # skip future months
+  mutate(all_articles = map2_int(
+    start, end,
+    \(s, e) count_hits(begin = format(s, "%Y%m%d"), end = format(e, "%Y%m%d")),
+    .progress = TRUE
+  ))
+
+write_csv(monthly, "nyt_monthly_totals.csv")
+```
+
+```{r}
+#| label: load-monthly
+monthly <- read_csv(
+  "https://raw.githubusercontent.com/dillonleeper/DATA-607/main/assignments/week09/nyt_monthly_totals.csv",
+  show_col_types = FALSE
+)
+
+all_yearly <- monthly |>
+  group_by(year) |>
+  summarise(all_articles = sum(all_articles))
+```
+
+## AI Coverage Over Time
+
+```{r}
+#| label: yearly-table
+yearly <- ai_yearly |>
+  left_join(all_yearly, by = "year") |>
+  mutate(share_pct = ai_articles / all_articles * 100)
+
+yearly |>
+  mutate(share_pct    = round(share_pct, 2),
+         across(c(ai_articles, all_articles), \(x) format(x, big.mark = ","))) |>
+  rename(Year = year, `AI articles` = ai_articles,
+         `All articles` = all_articles, `AI share (%)` = share_pct)
+```
+
+```{r}
+#| label: fig-trend
+#| fig-cap: "Share of all New York Times articles that mention \"artificial intelligence\", by year"
+ggplot(yearly, aes(x = year, y = share_pct)) +
+  geom_vline(xintercept = 2022.9, linetype = "dashed", colour = "grey60") +
+  annotate("text", x = 2022.8, y = max(yearly$share_pct) * 0.9,
+           label = "ChatGPT released\n(Nov 2022)", hjust = 1, size = 3.2, colour = "grey40") +
+  geom_line(colour = "#2c5f8a", linewidth = 1) +
+  geom_point(colour = "#2c5f8a", size = 2.5) +
+  geom_label(aes(label = paste0(round(share_pct, 1), "%")), vjust = -0.6, size = 3.2,
+             label.size = 0, fill = "white") +
+  scale_x_continuous(breaks = 2016:2026, labels = \(x) if_else(x == 2026, "2026*", as.character(x))) +
+  scale_y_continuous(labels = \(x) paste0(x, "%"), expand = expansion(mult = c(0.05, 0.15))) +
+  labs(x = NULL, y = "Share of all articles",
+       title = "NYT articles mentioning \"artificial intelligence\"",
+       caption = "*2026 runs through October") +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.minor = element_blank())
+```
+
+```{r}
+#| label: trend-values
+#| echo: false
+s <- \(y) round(yearly$share_pct[yearly$year == y], 1)
+jump <- round(yearly$share_pct[yearly$year == 2023] / yearly$share_pct[yearly$year == 2022], 1)
+```
+
+**Note:** AI coverage grew slowly from `r s(2016)`% of articles in 2016 to `r s(2019)`% in 2019, then fell back to about `r s(2021)`% in 2020 to 2022, possibly because other news (the pandemic, the 2020 election) took up more space. After ChatGPT's release in November 2022, the share grew `r jump` times in one year, to `r s(2023)`% in 2023, and reached `r s(2026)`% so far in 2026, about 1 in `r round(100 / s(2026))` articles. Meanwhile the Times published fewer articles overall, so raw counts alone would understate how much bigger a share AI has become.
+
+## Pull 3: Which Sections Cover AI
+
+| Parameter | Value |
+|---|---|
+| `q` | `"artificial intelligence"` |
+| `begin_date` / `end_date` | `20260101` to `20261231` |
+| `sort` | `newest` |
+| `page` | `0` to `9` (10 articles per page, 100 articles) |
+
+```{r}
+#| label: get-articles
+get_page <- function(page) {
+  nyt_search(q = '"artificial intelligence"',
+             begin_date = "20260101", end_date = "20261231",
+             sort = "newest", page = page)$response$docs
+}
+
+docs <- map(0:9, get_page) |> list_flatten()
+length(docs)
+```
+
+### From Nested JSON to a Tidy Data Frame
+
+Each article is a nested list. `headline` and `byline` are lists with several fields, and `keywords` is a list of lists (one per keyword, each with a name, value, and rank). Each article becomes one row:
+
+```{r}
+#| label: tidy-articles
+articles <- map(docs, \(d) tibble(
+  id       = d$`_id`,
+  pub_date = as_date(ymd_hms(d$pub_date)),                      # "2025-10-31T16:45:06Z" -> date
+  headline = d$headline$main,                                   # main headline only
+  section  = d$section_name,
+  byline   = d$byline$original,
+  keywords = paste(map_chr(d$keywords, "value"), collapse = ", ") # all keywords in one column
+)) |>
+  list_rbind() |>
+  mutate(section = if_else(is.na(section) | section == "", "Unknown", section)) |>
+  distinct(id, .keep_all = TRUE)                                # in case an article appears on two pages
+
+glimpse(articles)
+
+articles |>
+  select(pub_date, section, headline) |>
+  head(10)
+```
+
+```{r}
+#| label: fig-sections
+#| fig-cap: "Sections of the 100 most recent 2026 NYT articles that mention \"artificial intelligence\""
+section_counts <- articles |> count(section, sort = TRUE)
+
+section_counts |>
+  slice_max(n, n = 8, with_ties = FALSE) |>
+  ggplot(aes(x = n, y = fct_reorder(section, n))) +
+  geom_col(fill = "#2c5f8a") +
+  geom_text(aes(label = n), hjust = -0.3, size = 3.2) +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.1))) +
+  labs(x = "Articles", y = NULL,
+       title = "Where AI coverage appears",
+       subtitle = paste0(nrow(articles), " most recent 2026 articles, ",
+                         format(min(articles$pub_date), "%b %d"), " to ",
+                         format(max(articles$pub_date), "%b %d"))) +
+  theme_minimal(base_size = 12) +
+  theme(panel.grid.major.y = element_blank())
+```
+
+**Note:** `r section_counts$section[1]` has the most AI articles (`r section_counts$n[1]` of `r nrow(articles)`), ahead of `r section_counts$section[2]` (`r section_counts$n[2]`).`r if (section_counts$section[1] == "Business") " AI is covered mostly as a business story, not only as technology news." else ""`
+
+## Data Cleaning Decisions
+
+- **The 10,000 hit cap.** A search with no keyword reports at most 10,000 hits, so yearly totals were all "10,000". Totals were counted month by month instead.
+- **Phrase search is a lower bound.** The query matches the exact phrase "artificial intelligence". Articles that only say "A.I." (the Times' style in headlines) or only name a product like ChatGPT are not counted. The rule is the same for every year, so the trend is still a fair comparison.
+- **Shares, not raw counts.** The Times published fewer articles over time (about 69,000 in 2016 vs. 50,000 in 2025), and 2026 is a partial year, so years are compared by share of all articles.
+- **Nested fields.** Only `headline$main` and `byline$original` are kept. `keywords` (a list of lists) is collapsed into one comma-separated column. `multimedia` and other unused fields are dropped.
+- **Dates.** `pub_date` is text with a time and time zone, converted to a date.
+- **Missing values.** Articles with no section are labeled "Unknown" instead of dropped, so section counts add up to the total.
+- **Duplicates.** Articles are de-duplicated by `id` in case one appears on two pages.
+- **Section sample.** The section breakdown uses the 100 newest 2026 articles, which covers only the most recent weeks, not the whole year.
+- **Live data.** AI counts and articles are pulled when the document is rendered, so the newest numbers can change slightly from render to render. The monthly totals are from November 1, 2026.
+
+## AI Disclosure
+
+Claude (Anthropic) helped write and debug the code and organize the text. I ran each request myself, checked the results, and found the 10,000 cap in the output.
+
+Anthropic. (2026). *Claude* \[Large language model\]. <https://claude.ai/>. Accessed November 1, 2026.
