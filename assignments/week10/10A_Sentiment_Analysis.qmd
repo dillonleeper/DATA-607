@@ -1,0 +1,1296 @@
+---
+title: "Assignment 10A: Sentiment Analysis"
+subtitle: "DATA 607 · Code Base"
+author: "Dillon Leeper"
+date: today
+date-format: "MMMM D, YYYY"
+format:
+  html:
+    theme: flatly
+    embed-resources: true
+    title-block-banner: true
+    toc: true
+    toc-location: left
+    toc-title: "Contents"
+    toc-depth: 2
+    smooth-scroll: true
+    code-fold: show
+    code-summary: "Show code"
+    code-tools:
+      source: false
+      toggle: true
+      caption: "Code"
+    code-copy: hover
+    highlight-style: github
+    df-print: kable
+    fig-align: center
+    fig-width: 8
+    fig-height: 4.5
+    fig-dpi: 150
+    include-in-header:
+      - text: |
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+          <style>
+            :root {
+              --ink: #1f2933;
+              --muted: #5f6b7a;
+              --accent: #2c5f8a;
+              --accent-soft: #e8f0f7;
+              --line: #e3e8ee;
+              --paper: #fbfaf7;
+            }
+            body {
+              font-family: "Lora", Georgia, serif;
+              font-size: 1.06rem;
+              line-height: 1.75;
+              color: var(--ink);
+              background: var(--paper);
+            }
+            h1, h2, h3, h4, .title, .subtitle, #TOC, .quarto-title-meta,
+            table, .code-tools-button, details > summary {
+              font-family: "Inter", system-ui, sans-serif;
+            }
+
+            /* title banner */
+            .quarto-title-banner {
+              background: linear-gradient(135deg, #1b3a57 0%, #2c5f8a 55%, #3f7fb0 100%) !important;
+              padding: 3.2rem 0 2.6rem !important;
+            }
+            .quarto-title-banner .title { font-weight: 700; letter-spacing: -0.02em; color: #fff; }
+            .quarto-title-banner .subtitle { color: rgba(255,255,255,0.82); font-weight: 500; font-size: 1.05rem; }
+            .quarto-title-meta-heading { color: var(--muted); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; }
+
+            /* headings */
+            h2 {
+              font-weight: 700;
+              font-size: 1.55rem;
+              color: var(--accent);
+              margin-top: 3rem;
+              padding-bottom: 0.4rem;
+              border-bottom: 2px solid var(--accent-soft);
+            }
+            h2.anchored { border-bottom: 2px solid var(--accent-soft); }
+            strong { color: #13293d; }
+
+            /* contents sidebar */
+            #TOC { font-size: 0.88rem; }
+            #TOC .nav-link { color: var(--muted); border-left: 2px solid transparent; padding-left: 0.6rem; }
+            #TOC .nav-link.active, #TOC .nav-link:hover { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+
+            /* tables */
+            table.table {
+              font-size: 0.9rem;
+              border-collapse: separate;
+              border-spacing: 0;
+              border: 1px solid var(--line);
+              border-radius: 10px;
+              overflow: hidden;
+              background: #fff;
+              box-shadow: 0 1px 3px rgba(16,24,40,0.06);
+              margin: 1.2rem 0 1.6rem;
+            }
+            table.table thead th {
+              background: var(--accent);
+              color: #fff;
+              font-weight: 600;
+              border: none;
+              padding: 0.65rem 0.9rem;
+            }
+            table.table tbody td { padding: 0.55rem 0.9rem; border-top: 1px solid var(--line); }
+            table.table tbody tr:nth-child(even) td { background: #f7f9fb; }
+            table.table tbody tr:hover td { background: var(--accent-soft); }
+
+            /* code */
+            div.sourceCode, pre.sourceCode {
+              background: #f5f7fa !important;
+              border: 1px solid var(--line);
+              border-radius: 10px;
+            }
+            code, pre { font-family: "JetBrains Mono", monospace; font-size: 0.84rem; }
+            details.code-fold > summary {
+              display: inline-block;
+              font-size: 0.78rem;
+              font-weight: 600;
+              color: var(--accent);
+              background: var(--accent-soft);
+              padding: 0.2rem 0.75rem;
+              border-radius: 999px;
+              margin-bottom: 0.4rem;
+              cursor: pointer;
+            }
+            pre:not(.sourceCode) {
+              background: #fff;
+              border-left: 3px solid var(--accent);
+              border-radius: 6px;
+              padding: 0.8rem 1rem;
+            }
+
+            /* figures and math */
+            .cell-output-display img {
+              border-radius: 10px;
+              background: #fff;
+              padding: 0.6rem;
+              box-shadow: 0 2px 10px rgba(16,24,40,0.08);
+            }
+            .math.display { overflow-x: auto; }
+
+            /* code tools dropdown */
+            .code-tools-button {
+              color: #fff !important;
+              border: 1px solid rgba(255,255,255,0.6) !important;
+              border-radius: 8px !important;
+              font-weight: 600;
+            }
+            .code-tools-button:hover { background: rgba(255,255,255,0.15) !important; }
+            .quarto-title-banner .dropdown-menu, #quarto-code-tools-menu + .dropdown-menu, .dropdown-menu {
+              background: #fff !important;
+              border: 1px solid var(--line) !important;
+              border-radius: 10px !important;
+              box-shadow: 0 8px 24px rgba(16,24,40,0.14) !important;
+              padding: 0.35rem !important;
+            }
+            .dropdown-menu .dropdown-item {
+              font-family: "Inter", system-ui, sans-serif !important;
+              font-size: 0.9rem !important;
+              font-weight: 600 !important;
+              color: var(--ink) !important;
+              border-radius: 6px;
+              padding: 0.5rem 0.9rem !important;
+            }
+            .dropdown-menu .dropdown-item:hover, .dropdown-menu .dropdown-item:focus {
+              background: var(--accent-soft) !important;
+              color: var(--accent) !important;
+            }
+
+            /* bullet lists */
+            ul li::marker { color: var(--accent); }
+
+            /* print / save as PDF: centered, no sidebar, no buttons */
+            @page { margin: 0.5in; }
+            @media print {
+              * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+              #quarto-sidebar-toc-left, #quarto-sidebar, #quarto-margin-sidebar, nav#TOC, #TOC,
+              .code-tools-button, .dropdown-menu, details.code-fold > summary, .code-copy-button {
+                display: none !important;
+              }
+              body, #quarto-content, .page-columns, .page-layout-article {
+                display: block !important;
+                background: var(--paper) !important;
+              }
+              main.content, #quarto-document-content, .quarto-title-banner .quarto-title, #title-block-header .quarto-title-meta {
+                grid-column: auto !important;
+                max-width: 7.5in !important;
+                width: 100% !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+              }
+              #title-block-header.quarto-title-block, .quarto-title-banner, header#title-block-header .quarto-title-banner {
+                display: block !important;
+                visibility: visible !important;
+                background: #2c5f8a linear-gradient(135deg, #1b3a57 0%, #2c5f8a 55%, #3f7fb0 100%) !important;
+                background-color: #2c5f8a !important;
+                padding: 1.8rem 1.6rem 1.5rem !important;
+                margin: 0 auto 1.2rem !important;
+                max-width: 7.5in !important;
+                border-radius: 12px !important;
+              }
+              .quarto-title-banner .quarto-title, .quarto-title-banner .quarto-title > div { display: block !important; max-width: none !important; }
+              .quarto-title-banner h1, .quarto-title-banner .title,
+              .quarto-title-banner p, .quarto-title-banner .subtitle {
+                display: block !important;
+                visibility: visible !important;
+                color: #fff !important;
+                opacity: 1 !important;
+              }
+              .quarto-title-banner .title { font-size: 1.9rem !important; margin: 0 0 0.3rem !important; }
+              .quarto-title-banner .subtitle { color: rgba(255,255,255,0.85) !important; font-size: 1rem !important; margin: 0 !important; }
+              .quarto-title-meta { margin-top: 0.4rem !important; }
+              h2 { break-after: avoid; page-break-after: avoid; margin-top: 1.6rem; }
+              .cell-output-display, table, figure, img { break-inside: avoid; page-break-inside: avoid; }
+              pre, code { white-space: pre-wrap !important; word-break: break-word; }
+              .cell-output-display img { box-shadow: none; }
+            }
+          </style>
+execute:
+  warning: false
+  message: false
+editor: visual
+---
+
+## Overview
+
+| | |
+|------------------------|------------------------------------------------|
+| **Part 1** | Reproduces Chapter 2 of *Text Mining with R* (Silge and Robinson): sentiment analysis of Jane Austen's novels, using the book's code unchanged |
+| **Part 2** | Runs the same tests on *The Great Gatsby* (1925) and *The Sun Also Rises* (1926), adds a fourth method (`sentimentr`), and scores the scenes around each main character |
+| **Question** | Does the Chapter 2 approach tell the same story on two 1920s novels as it does on Austen? |
+
+Source: Silge, J., & Robinson, D. (2017). *Text Mining with R: A Tidy Approach*, Chapter 2, "Sentiment analysis with tidy data." <https://www.tidytextmining.com/sentiment.html>. Original code: <https://github.com/dgrtwo/tidy-text-mining>.
+
+## Key findings
+
+-   **Tone:** *Gatsby* is the only one of the eight books that scores negative overall. *The Sun Also Rises* is positive, but less so than any Austen novel.
+-   **Misread words:** every book has one. "miss" (a title) for Austen and *Gatsby*, "damned" (used to mean "very") for *The Sun Also Rises*.
+-   **Darkest chapter:** found correctly for *Gatsby* (the Plaza fight and Myrtle's death), wrong for *The Sun Also Rises* (a fishing trip, flagged because of a joke).
+-   **Sentence-level scoring:** `sentimentr` fixes some negations ("not too pleasant") and breaks others ("Don't be a damned fool").
+-   **Characters:** in *Gatsby*, the scenes around Tom, Jordan, Myrtle and George Wilson lean negative. In *The Sun Also Rises*, everyone stays near neutral.
+
+Details and numbers are in [How the Results Differ from the Original](#how-the-results-differ-from-the-original).
+
+## Setup
+
+```{r}
+#| label: setup
+library(tidytext)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(wordcloud)
+library(reshape2)
+library(gutenbergr)
+library(readr)
+library(sentimentr)
+library(knitr)
+```
+
+::: callout-note
+## Before rendering
+
+The AFINN and NRC lexicons download through the `textdata` package, which asks you to accept each license the first time. That prompt can't be answered during a render, so run `get_sentiments("afinn")` and `get_sentiments("nrc")` once in the R console first. After that they load from the local cache.
+:::
+
+# Part 1: Reproducing Chapter 2
+
+## 2.1 The sentiment lexicons
+
+Three general-purpose lexicons, each scoring single words:
+
+| Lexicon | How it scores a word |
+|------------------------------------|------------------------------------|
+| AFINN | A number from -5 (very negative) to +5 (very positive) |
+| Bing | Positive or negative |
+| NRC | Positive or negative, plus eight emotions (anger, anticipation, disgust, fear, joy, sadness, surprise, trust) |
+
+```{r}
+#| label: lexicons
+#| render: !expr knitr::normal_print
+get_sentiments("afinn")
+get_sentiments("bing")
+get_sentiments("nrc")
+```
+
+## 2.2 Sentiment analysis with inner join
+
+Turn the Austen novels into one word per row, keeping track of the line and chapter each word came from.
+
+```{r}
+#| label: tidy-austen
+tidy_books <- austen_books() %>%
+  group_by(book) %>%
+  mutate(
+    linenumber = row_number(),
+    chapter = cumsum(str_detect(text, 
+                                regex("^chapter [\\divxlc]", 
+                                      ignore_case = TRUE)))) %>%
+  ungroup() %>%
+  unnest_tokens(word, text)
+```
+
+The most common "joy" words in *Emma*:
+
+```{r}
+#| label: emma-joy
+#| render: !expr knitr::normal_print
+nrc_joy <- get_sentiments("nrc") %>% 
+  filter(sentiment == "joy")
+
+tidy_books %>%
+  filter(book == "Emma") %>%
+  inner_join(nrc_joy) %>%
+  count(word, sort = TRUE)
+```
+
+Net sentiment (positive words minus negative words) in each 80-line section of each novel, using Bing:
+
+```{r}
+#| label: austen-arcs
+#| fig-height: 6
+jane_austen_sentiment <- tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(book, index = linenumber %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+ggplot(jane_austen_sentiment, aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 2, scales = "free_x")
+```
+
+## 2.3 Comparing the three lexicons
+
+All three lexicons on *Pride & Prejudice*:
+
+```{r}
+#| label: pp-compare
+#| fig-height: 6
+pride_prejudice <- tidy_books %>% 
+  filter(book == "Pride & Prejudice")
+
+afinn <- pride_prejudice %>% 
+  inner_join(get_sentiments("afinn")) %>% 
+  group_by(index = linenumber %/% 80) %>% 
+  summarise(sentiment = sum(value)) %>% 
+  mutate(method = "AFINN")
+
+bing_and_nrc <- bind_rows(
+  pride_prejudice %>% 
+    inner_join(get_sentiments("bing")) %>%
+    mutate(method = "Bing et al."),
+  pride_prejudice %>% 
+    inner_join(get_sentiments("nrc") %>% 
+                 filter(sentiment %in% c("positive", 
+                                         "negative"))
+    ) %>%
+    mutate(method = "NRC")) %>%
+  count(method, index = linenumber %/% 80, sentiment) %>%
+  pivot_wider(names_from = sentiment,
+              values_from = n,
+              values_fill = 0) %>% 
+  mutate(sentiment = positive - negative)
+
+bind_rows(afinn, 
+          bing_and_nrc) %>%
+  ggplot(aes(index, sentiment, fill = method)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~method, ncol = 1, scales = "free_y")
+```
+
+The book's explanation for why NRC runs higher than Bing: the two lexicons have different ratios of negative to positive words.
+
+```{r}
+#| label: lexicon-ratios
+get_sentiments("nrc") %>% 
+  filter(sentiment %in% c("positive", "negative")) %>% 
+  count(sentiment)
+
+get_sentiments("bing") %>% 
+  count(sentiment)
+```
+
+## 2.4 Most common positive and negative words
+
+```{r}
+#| label: austen-top-words
+#| render: !expr knitr::normal_print
+bing_word_counts <- tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+bing_word_counts
+
+bing_word_counts %>%
+  group_by(sentiment) %>%
+  slice_max(n, n = 10) %>% 
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(x = "Contribution to sentiment",
+       y = NULL)
+```
+
+"miss" is scored negative, but Austen uses it as a title ("Miss Bennet"). The book's fix is a custom stop word. Stop words are common words like "the" and "and" that get removed before counting, using `anti_join()`. Adding "miss" to that list means it gets removed too, so it can't count as negative. The book builds the list here but doesn't rerun anything with it. Part 2 applies it to *Gatsby*.
+
+```{r}
+#| label: custom-stop
+#| render: !expr knitr::normal_print
+custom_stop_words <- bind_rows(tibble(word = c("miss"),  
+                                      lexicon = c("custom")), 
+                               stop_words)
+
+custom_stop_words
+```
+
+## 2.5 Wordclouds
+
+```{r}
+#| label: austen-cloud
+#| fig-height: 6
+tidy_books %>%
+  anti_join(stop_words) %>%
+  count(word) %>%
+  with(wordcloud(word, n, max.words = 100))
+```
+
+```{r}
+#| label: austen-comparison-cloud
+#| fig-height: 6
+tidy_books %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(word, sentiment, sort = TRUE) %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("gray20", "gray80"),
+                   max.words = 100)
+```
+
+## 2.6 Looking at units beyond words
+
+Splitting into sentences and chapters instead of words:
+
+```{r}
+#| label: sentences-chapters
+p_and_p_sentences <- tibble(text = prideprejudice) %>% 
+  unnest_tokens(sentence, text, token = "sentences")
+
+p_and_p_sentences$sentence[2]
+
+austen_chapters <- austen_books() %>%
+  group_by(book) %>%
+  unnest_tokens(chapter, text, token = "regex", 
+                pattern = "Chapter|CHAPTER [\\dIVXLC]") %>%
+  ungroup()
+
+austen_chapters %>% 
+  group_by(book) %>% 
+  summarise(chapters = n())
+```
+
+The most negative chapter in each novel, as a share of its words:
+
+```{r}
+#| label: austen-negative-chapters
+bingnegative <- get_sentiments("bing") %>% 
+  filter(sentiment == "negative")
+
+wordcounts <- tidy_books %>%
+  group_by(book, chapter) %>%
+  summarize(words = n())
+
+tidy_books %>%
+  semi_join(bingnegative) %>%
+  group_by(book, chapter) %>%
+  summarize(negativewords = n()) %>%
+  left_join(wordcounts, by = c("book", "chapter")) %>%
+  mutate(ratio = negativewords/words) %>%
+  filter(chapter != 0) %>%
+  slice_max(ratio, n = 1) %>% 
+  ungroup()
+```
+
+# Part 2: Extending the Analysis
+
+## New corpus: two 1920s novels
+
+| | *The Great Gatsby* | *The Sun Also Rises* |
+|------------------|------------------------|------------------------|
+| Author | F. Scott Fitzgerald | Ernest Hemingway |
+| Published | 1925 | 1926 |
+| Project Gutenberg ID | 64317 | 67138 |
+| US public domain since | 2021 | 2022 |
+
+Downloaded with `gutenbergr`. The first render saves a CSV copy, and later renders read from it, so the report doesn't depend on the Gutenberg mirror.
+
+```{r}
+#| label: load-books
+book_titles <- c(`64317` = "The Great Gatsby", `67138` = "The Sun Also Rises")
+books_file <- "gatsby_sun_also_rises.csv"
+
+if (file.exists(books_file)) {
+  raw_books <- read_csv(books_file, col_types = "ic", na = character())
+} else {
+  raw_books <- gutenberg_download(c(64317, 67138))
+  write_csv(raw_books, books_file, na = "")
+}
+```
+
+### Cleaning
+
+The book's Austen chapter pattern doesn't fit either book, so each gets its own rule:
+
+| | *The Great Gatsby* | *The Sun Also Rises* |
+|------------------|------------------------|------------------------|
+| Story starts at | The second "I" (the first is in the table of contents) | The first "CHAPTER" |
+| Chapter headings | A Roman numeral alone on a line | "CHAPTER" on one line, the number on the next |
+| Also dropped | Title page, dedication, epigraph | Front matter, "BOOK II/III" titles, transcriber's note after "THE END" |
+
+Curly quotes and apostrophes are straightened so "don't" matches the lexicons' spelling.
+
+```{r}
+#| label: clean-books
+new_books <- raw_books %>%
+  mutate(
+    book = factor(book_titles[as.character(gutenberg_id)], levels = book_titles),
+    text = str_replace_all(text, "[‘’]", "'"),
+    text = str_replace_all(text, "[“”]", '"'),
+    trimmed = str_trim(text)
+  ) %>%
+  group_by(book) %>%
+  mutate(
+    start = if_else(book == "The Great Gatsby",
+                    which(trimmed == "I")[2],
+                    which(trimmed == "CHAPTER")[1]),
+    end = coalesce(which(trimmed == "THE END")[1], n() + 1L)
+  ) %>%
+  filter(row_number() >= start, row_number() < end) %>%
+  mutate(
+    heading = if_else(book == "The Great Gatsby",
+                      str_detect(trimmed, "^[IVX]+$"),
+                      trimmed == "CHAPTER"),
+    chapter = cumsum(heading)
+  ) %>%
+  filter(!heading,
+         !str_detect(trimmed, "^BOOK [IVX]+$"),
+         !str_detect(trimmed, "^\\d+$")) %>%
+  mutate(linenumber = row_number()) %>%
+  ungroup() %>%
+  select(book, linenumber, chapter, text)
+
+tidy_new <- new_books %>%
+  unnest_tokens(word, text)
+```
+
+Check against the books (9 chapters in *Gatsby*, 19 in *The Sun Also Rises*):
+
+```{r}
+#| label: chapter-check
+new_books %>%
+  group_by(Book = book) %>%
+  summarise(Chapters = n_distinct(chapter),
+            `First line of the story` = first(text[str_trim(text) != ""]))
+```
+
+### Section size
+
+The book scores 80-line sections and notes the right size depends on the text. These books have shorter lines than Austen's:
+
+```{r}
+#| label: section-size
+section_size <- bind_rows(
+  tibble(book = "Jane Austen (all 6 novels)",
+         words = nrow(tidy_books),
+         lines = nrow(austen_books())),
+  tidy_new %>% count(book, name = "words") %>%
+    left_join(new_books %>% count(book, name = "lines"), by = "book") %>%
+    mutate(book = as.character(book))
+) %>%
+  mutate(words_per_line = words / lines)
+
+section_size %>%
+  transmute(Book = book,
+            Words = format(words, big.mark = ","),
+            Lines = format(lines, big.mark = ","),
+            `Words per line` = round(words_per_line, 1))
+
+austen_wpl <- section_size %>% filter(!book %in% book_titles) %>% pull(words_per_line)
+new_wpl <- section_size %>% filter(book %in% book_titles) %>% pull(words_per_line)
+
+new_section_size <- round(80 * austen_wpl / mean(new_wpl), -1)
+```
+
+**Takeaway:** the new books use **`r new_section_size`-line sections**, so each section holds about as much text as the book's 80-line Austen sections. *Pride & Prejudice* stays at 80.
+
+## Sentiment through each novel
+
+The Bing net-sentiment arc from Section 2.2, for the new books:
+
+```{r}
+#| label: new-arcs
+#| fig-height: 5.5
+new_sentiment <- tidy_new %>%
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  count(book, index = linenumber %/% new_section_size, sentiment) %>%
+  pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+  mutate(sentiment = positive - negative)
+
+ggplot(new_sentiment, aes(index, sentiment, fill = book)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~book, ncol = 1, scales = "free_x") +
+  labs(x = paste0(new_section_size, "-line section"), y = "Net sentiment (positive - negative)")
+```
+
+```{r}
+#| label: arc-values
+#| include: false
+arc_share <- bind_rows(
+  jane_austen_sentiment %>% mutate(book = as.character(book)),
+  new_sentiment %>% mutate(book = as.character(book))
+) %>%
+  group_by(book) %>%
+  summarise(share_negative = mean(sentiment < 0))
+
+austen_neg_share <- arc_share %>% filter(!book %in% book_titles) %>% pull(share_negative)
+gatsby_neg_share <- arc_share %>% filter(book == "The Great Gatsby") %>% pull(share_negative)
+sun_neg_share <- arc_share %>% filter(book == "The Sun Also Rises") %>% pull(share_negative)
+```
+
+| Sections that score negative | |
+|------------------------|------------------------|
+| Austen (6 novels) | `r scales::percent(min(austen_neg_share))` to `r scales::percent(max(austen_neg_share))` |
+| *The Great Gatsby* | `r scales::percent(gatsby_neg_share)` |
+| *The Sun Also Rises* | `r scales::percent(sun_neg_share)` |
+
+**Takeaway:** Austen's arcs stay mostly above zero. *Gatsby* spends most of its length below.
+
+## Overall tone compared with Austen
+
+All eight books, scored per 1,000 words so long and short books compare fairly:
+
+```{r}
+#| label: tone-table
+all_tidy <- bind_rows(
+  tidy_books %>% mutate(book = as.character(book), author = "Austen"),
+  tidy_new %>% mutate(book = as.character(book),
+                      author = if_else(book == "The Great Gatsby", "Fitzgerald", "Hemingway"))
+)
+
+bing_rates <- all_tidy %>%
+  left_join(get_sentiments("bing"), by = "word") %>%
+  group_by(author, book) %>%
+  summarise(words = n(),
+            matched = sum(!is.na(sentiment)),
+            positive = sum(sentiment == "positive", na.rm = TRUE),
+            negative = sum(sentiment == "negative", na.rm = TRUE),
+            .groups = "drop")
+
+nrc_rates <- all_tidy %>%
+  inner_join(get_sentiments("nrc") %>% filter(sentiment %in% c("positive", "negative")),
+             by = "word") %>%
+  group_by(book) %>%
+  summarise(nrc_positive_share = mean(sentiment == "positive"))
+
+tone <- bing_rates %>%
+  left_join(nrc_rates, by = "book") %>%
+  mutate(matched_per_1k = matched / words * 1000,
+         net_per_1k = (positive - negative) / words * 1000,
+         bing_positive_share = positive / matched)
+
+tone %>%
+  arrange(desc(net_per_1k)) %>%
+  transmute(Author = author,
+            Book = book,
+            `Net sentiment per 1,000` = round(net_per_1k, 1),
+            `Sentiment words per 1,000` = round(matched_per_1k, 1),
+            `Bing: % positive` = scales::percent(bing_positive_share, accuracy = 1),
+            `NRC: % positive` = scales::percent(nrc_positive_share, accuracy = 1))
+```
+
+```{r}
+#| label: tone-values
+#| include: false
+austen_tone <- tone %>% filter(author == "Austen")
+gatsby_tone <- tone %>% filter(book == "The Great Gatsby")
+sun_tone <- tone %>% filter(book == "The Sun Also Rises")
+nrc_higher_everywhere <- all(tone$nrc_positive_share > tone$bing_positive_share)
+```
+
+-   **Net sentiment:** Austen `r round(min(austen_tone$net_per_1k), 1)` to `r round(max(austen_tone$net_per_1k), 1)` · *Gatsby* `r round(gatsby_tone$net_per_1k, 1)` · *The Sun Also Rises* `r round(sun_tone$net_per_1k, 1)`
+-   **Sentiment words per 1,000:** Austen `r round(min(austen_tone$matched_per_1k))` to `r round(max(austen_tone$matched_per_1k))` · *Gatsby* `r round(gatsby_tone$matched_per_1k)` · *The Sun Also Rises* `r round(sun_tone$matched_per_1k)`
+-   **NRC runs higher than Bing** (the book's finding): `r if (nrc_higher_everywhere) "true for all eight books" else "not true for every book"`
+
+**Takeaway:** the new books have less sentiment vocabulary for the lexicons to work with, and *Gatsby* is the only negative book.
+
+## Adding a fourth method: `sentimentr`
+
+The Chapter 2 lexicons score one word at a time, so "not good" counts as positive. `sentimentr` (Rinker), which the book mentions in Section 2.6, scores whole sentences and adjusts for nearby words:
+
+| Word type | Example | Effect |
+|------------------|------------------|------------------------|
+| Negator | "not" | Flips the score |
+| Amplifier | "very" | Strengthens it |
+| De-amplifier | "hardly" | Weakens it |
+
+All four methods are scored on the same sections. For `sentimentr`, each section's sentences are scored and summed.
+
+```{r}
+#| label: score-function
+score_sections <- function(lines, size = 80) {
+  lines <- lines %>% mutate(index = linenumber %/% size)
+  words <- lines %>% unnest_tokens(word, text)
+
+  afinn_scores <- words %>%
+    inner_join(get_sentiments("afinn"), by = "word") %>%
+    group_by(book, index) %>%
+    summarise(sentiment = sum(value), .groups = "drop") %>%
+    mutate(method = "AFINN")
+
+  bing_nrc_scores <- bind_rows(
+    words %>%
+      inner_join(get_sentiments("bing"), by = "word") %>%
+      mutate(method = "Bing et al."),
+    words %>%
+      inner_join(get_sentiments("nrc") %>%
+                   filter(sentiment %in% c("positive", "negative")),
+                 by = "word") %>%
+      mutate(method = "NRC")
+  ) %>%
+    count(book, method, index, sentiment) %>%
+    pivot_wider(names_from = sentiment, values_from = n, values_fill = 0) %>%
+    mutate(sentiment = positive - negative) %>%
+    select(book, index, method, sentiment)
+
+  sentimentr_scores <- lines %>%
+    group_by(book, index) %>%
+    summarise(text = str_squish(paste(text, collapse = " ")), .groups = "drop") %>%
+    get_sentences() %>%
+    sentiment() %>%
+    as_tibble() %>%
+    group_by(book, index) %>%
+    summarise(sentiment = sum(sentiment, na.rm = TRUE), .groups = "drop") %>%
+    mutate(method = "sentimentr")
+
+  bind_rows(afinn_scores, bing_nrc_scores, sentimentr_scores) %>%
+    mutate(method = factor(method,
+                           levels = c("AFINN", "Bing et al.", "NRC", "sentimentr")))
+}
+
+pp_lines <- austen_books() %>%
+  filter(book == "Pride & Prejudice") %>%
+  mutate(linenumber = row_number(),
+         chapter = cumsum(str_detect(text, regex("^chapter [\\divxlc]", ignore_case = TRUE))),
+         book = "Pride & Prejudice")
+
+section_scores <- bind_rows(
+  score_sections(pp_lines),
+  score_sections(new_books %>% mutate(book = as.character(book)), size = new_section_size)
+) %>%
+  mutate(book = factor(book, levels = c("Pride & Prejudice", book_titles)))
+```
+
+Each panel has its own scale. Compare the shape of the bars, not their height:
+
+```{r}
+#| label: four-methods
+#| fig-height: 8.5
+#| fig-width: 9
+ggplot(section_scores, aes(index, sentiment, fill = method)) +
+  geom_col(show.legend = FALSE) +
+  facet_grid(method ~ book, scales = "free") +
+  labs(x = "Section", y = "Section score")
+```
+
+### Do the methods agree?
+
+The book found the lexicons share the **same ups and downs**. Correlation measures that: 1 = they move together, 0 = no relationship.
+
+```{r}
+#| label: agreement
+agreement <- section_scores %>%
+  pivot_wider(names_from = method, values_from = sentiment, values_fill = 0) %>%
+  group_by(Book = book) %>%
+  summarise(
+    `AFINN vs Bing` = cor(AFINN, `Bing et al.`),
+    `AFINN vs NRC` = cor(AFINN, NRC),
+    `Bing vs NRC` = cor(`Bing et al.`, NRC),
+    `sentimentr vs Bing` = cor(sentimentr, `Bing et al.`),
+    `sentimentr vs AFINN` = cor(sentimentr, AFINN)
+  )
+
+agreement %>% mutate(across(-Book, ~ round(.x, 2)))
+```
+
+```{r}
+#| label: agreement-values
+#| include: false
+lex_cols <- c("AFINN vs Bing", "AFINN vs NRC", "Bing vs NRC")
+lexicon_agreement <- agreement %>%
+  rowwise() %>%
+  mutate(avg_lexicon = mean(c_across(all_of(lex_cols)))) %>%
+  ungroup()
+pp_agree <- lexicon_agreement %>% filter(Book == "Pride & Prejudice") %>% pull(avg_lexicon)
+gatsby_agree <- lexicon_agreement %>% filter(Book == "The Great Gatsby") %>% pull(avg_lexicon)
+sun_agree <- lexicon_agreement %>% filter(Book == "The Sun Also Rises") %>% pull(avg_lexicon)
+```
+
+**Takeaway:** average agreement between the three word lexicons is `r round(pp_agree, 2)` on *Pride & Prejudice*, `r round(gatsby_agree, 2)` on *Gatsby* and `r round(sun_agree, 2)` on *The Sun Also Rises*. `r if (max(gatsby_agree, sun_agree) < pp_agree) "They still move together on the new books, just less closely." else "They agree about as well on the new books as on Austen."`
+
+### Where word-level and sentence-level scoring disagree
+
+Every sentence is scored twice, by Bing and by `sentimentr`, to see how often they point in opposite directions:
+
+```{r}
+#| label: sentence-scores
+score_sentences <- function(lines) {
+  sentences <- lines %>%
+    group_by(book, chapter) %>%
+    summarise(text = str_squish(paste(text, collapse = " ")), .groups = "drop") %>%
+    get_sentences() %>%
+    sentiment() %>%
+    as_tibble() %>%
+    transmute(book, chapter, sentence_id = row_number(), text = as.character(text),
+              word_count, sentimentr = sentiment)
+
+  bing_by_sentence <- sentences %>%
+    select(sentence_id, text) %>%
+    unnest_tokens(word, text) %>%
+    inner_join(get_sentiments("bing"), by = "word") %>%
+    group_by(sentence_id) %>%
+    summarise(bing = sum(sentiment == "positive") - sum(sentiment == "negative"))
+
+  sentences %>%
+    left_join(bing_by_sentence, by = "sentence_id") %>%
+    mutate(bing = coalesce(bing, 0L))
+}
+
+sentence_scores <- bind_rows(
+  score_sentences(pp_lines),
+  score_sentences(new_books %>% mutate(book = as.character(book)))
+) %>%
+  mutate(book = factor(book, levels = c("Pride & Prejudice", book_titles)))
+
+disagreement <- sentence_scores %>%
+  filter(bing != 0, sentimentr != 0) %>%
+  group_by(book) %>%
+  summarise(scored = n(), opposite = mean(sign(bing) != sign(sentimentr)))
+
+disagreement %>%
+  transmute(Book = book,
+            `Sentences both methods scored` = format(scored, big.mark = ","),
+            `Scored in opposite directions` = scales::percent(opposite, accuracy = 0.1))
+```
+
+Examples with a negating word. **Bing** = positive minus negative words. **sentimentr** = the sentence score. Above 0 is positive for both.
+
+```{r}
+#| label: sentence-examples
+#| results: asis
+negators <- "\\b(not|no|never|nothing|nobody|don't|didn't|isn't|wasn't|couldn't|wouldn't|can't)\\b"
+
+examples <- sentence_scores %>%
+  filter(book != "Pride & Prejudice",
+         bing != 0, sign(bing) != sign(sentimentr),
+         between(word_count, 5, 22),
+         str_detect(str_to_lower(text), negators)) %>%
+  group_by(book) %>%
+  slice_max(abs(sentimentr), n = 4, with_ties = FALSE) %>%
+  ungroup()
+
+for (b in book_titles) {
+  cat("\n\n**", b, "**\n\n", sep = "")
+  examples %>%
+    filter(book == b) %>%
+    transmute(Sentence = text, Bing = bing, sentimentr = round(sentimentr, 2)) %>%
+    knitr::kable() %>%
+    print()
+}
+```
+
+```{r}
+#| label: disagreement-values
+#| include: false
+pp_opp <- disagreement %>% filter(book == "Pride & Prejudice") %>% pull(opposite)
+new_opp <- disagreement %>% filter(book != "Pride & Prejudice") %>% pull(opposite)
+```
+
+| `sentimentr` gets it right | `sentimentr` gets it wrong |
+|------------------------|------------------------|
+| "it's not too pleasant": reads the "not", scores negative | "Don't be a damned fool": the "don't" flips the insult, scores positive |
+
+**Takeaway:** the two methods disagree on `r scales::percent(min(new_opp), accuracy = 1)` to `r scales::percent(max(new_opp), accuracy = 1)` of sentences in the new books (`r scales::percent(pp_opp, accuracy = 1)` in *Pride & Prejudice*), and neither is consistently right.
+
+## Words that get misread
+
+The Section 2.4 chart for each new book:
+
+```{r}
+#| label: new-top-words
+#| fig-height: 6.5
+new_word_counts <- tidy_new %>%
+  inner_join(get_sentiments("bing"), by = "word") %>%
+  count(book, word, sentiment, sort = TRUE)
+
+new_word_counts %>%
+  group_by(book, sentiment) %>%
+  slice_max(n, n = 10, with_ties = FALSE) %>%
+  ungroup() %>%
+  mutate(word = reorder_within(word, n, list(book, sentiment))) %>%
+  ggplot(aes(n, word, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(book ~ sentiment, scales = "free") +
+  scale_y_reordered() +
+  labs(x = "Contribution to sentiment", y = NULL)
+```
+
+```{r}
+#| label: miss-values
+#| include: false
+gatsby_miss <- new_word_counts %>% filter(book == "The Great Gatsby", word == "miss") %>% pull(n)
+gatsby_miss_title <- new_books %>% filter(book == "The Great Gatsby") %>%
+  summarise(n = sum(str_count(text, "\\bMiss [A-Z]"))) %>% pull(n)
+```
+
+### *Gatsby*: "miss" again
+
+-   Top negative word: **`r gatsby_miss` uses**
+-   **`r gatsby_miss_title`** of them are "Miss" + a name (mostly Miss Baker)
+
+Applying the book's custom stop word fix from Section 2.4:
+
+```{r}
+#| label: miss-fix
+net_per_1k <- function(tidy) {
+  tidy %>%
+    inner_join(get_sentiments("bing"), by = "word") %>%
+    group_by(book) %>%
+    summarise(net = sum(sentiment == "positive") - sum(sentiment == "negative")) %>%
+    left_join(tidy_new %>% count(book, name = "words"), by = "book") %>%
+    mutate(net_per_1k = net / words * 1000)
+}
+
+miss_fix <- bind_rows(
+  net_per_1k(tidy_new) %>% mutate(version = "As scored"),
+  net_per_1k(tidy_new %>% anti_join(custom_stop_words %>% filter(lexicon == "custom"), by = "word")) %>%
+    mutate(version = "Without \"miss\"")
+)
+
+miss_fix %>%
+  select(Book = book, version, net_per_1k) %>%
+  mutate(net_per_1k = round(net_per_1k, 1)) %>%
+  pivot_wider(names_from = version, values_from = net_per_1k)
+```
+
+```{r}
+#| label: miss-fix-values
+#| include: false
+gatsby_no_miss <- miss_fix %>% filter(book == "The Great Gatsby", version != "As scored") %>% pull(net_per_1k)
+```
+
+**Takeaway:** *Gatsby* `r if (gatsby_no_miss < 0) "is still negative without \"miss\", so the misread word isn't what makes it negative" else "is no longer negative without \"miss\""`.
+
+### *The Sun Also Rises*: "damned"
+
+The characters use "damned" and "damn" to mean "very" ("damned good"), but Bing scores them negative. The word right after each one:
+
+```{r}
+#| label: damned-bigrams
+damned_bigrams <- new_books %>%
+  filter(book == "The Sun Also Rises") %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) %>%
+  filter(!is.na(bigram)) %>%
+  separate(bigram, c("word1", "word2"), sep = " ") %>%
+  filter(word1 %in% c("damned", "damn")) %>%
+  inner_join(get_sentiments("bing"), by = c("word2" = "word"))
+
+damned_bigrams %>%
+  count(`Next word is` = sentiment, name = "Times") %>%
+  mutate(Share = scales::percent(Times / sum(Times), accuracy = 1))
+
+damned_bigrams %>%
+  unite(Phrase, word1, word2, sep = " ") %>%
+  count(Phrase, sort = TRUE) %>%
+  head(8)
+```
+
+```{r}
+#| label: damned-values
+#| include: false
+damned_pos_share <- mean(damned_bigrams$sentiment == "positive")
+```
+
+**Takeaway:** the next word is positive **`r scales::percent(damned_pos_share, accuracy = 1)`** of the time, so "damned good" cancels to zero instead of counting as praise.
+
+## Wordclouds by sentiment
+
+One cloud per book instead of the book's split gray halves:
+
+-   **Size** = how often the word appears
+-   **Color** = AFINN score: red is negative, green is positive, darker is stronger
+-   Stop words like "no" and "like" removed
+
+```{r}
+#| label: sentiment-cloud-function
+cloud_colors <- c("#7f1d1d", "#991b1b", "#b91c1c", "#d62f2f", "#e05252",   # -5 to -1
+                  "#888888",                                                # 0
+                  "#3f9e5f", "#2f8a4f", "#237a42", "#166534", "#0f4d27")   # +1 to +5
+
+sentiment_cloud <- function(tidy) {
+  words <- tidy %>%
+    anti_join(stop_words, by = "word") %>%
+    inner_join(get_sentiments("afinn"), by = "word") %>%
+    count(word, value, sort = TRUE) %>%
+    head(100)
+  set.seed(607)
+  wordcloud(words$word, words$n,
+            colors = cloud_colors[words$value + 6], ordered.colors = TRUE,
+            random.order = FALSE, scale = c(4, 0.6))
+}
+```
+
+::: panel-tabset
+### Jane Austen
+
+```{r}
+#| label: cloud-austen
+#| fig-height: 6
+sentiment_cloud(tidy_books)
+```
+
+### The Great Gatsby
+
+```{r}
+#| label: cloud-gatsby
+#| fig-height: 6
+sentiment_cloud(tidy_new %>% filter(book == "The Great Gatsby"))
+```
+
+### The Sun Also Rises
+
+```{r}
+#| label: cloud-sun
+#| fig-height: 6
+sentiment_cloud(tidy_new %>% filter(book == "The Sun Also Rises"))
+```
+:::
+
+## Most negative chapter in each book
+
+The Section 2.6 test: the chapter with the highest share of negative words.
+
+```{r}
+#| label: new-negative-chapters
+new_wordcounts <- tidy_new %>%
+  count(book, chapter, name = "words")
+
+new_negative <- tidy_new %>%
+  semi_join(bingnegative, by = "word") %>%
+  count(book, chapter, name = "negativewords") %>%
+  left_join(new_wordcounts, by = c("book", "chapter")) %>%
+  mutate(ratio = negativewords / words) %>%
+  group_by(book) %>%
+  slice_max(ratio, n = 1) %>%
+  ungroup()
+
+new_negative %>%
+  transmute(Book = book, Chapter = chapter,
+            `Negative words` = negativewords, Words = words,
+            `Share negative` = scales::percent(ratio, accuracy = 0.1))
+```
+
+The top negative words in *The Sun Also Rises*'s pick:
+
+```{r}
+#| label: sun-ch12
+tidy_new %>%
+  filter(book == "The Sun Also Rises",
+         chapter == new_negative$chapter[new_negative$book == "The Sun Also Rises"]) %>%
+  semi_join(bingnegative, by = "word") %>%
+  count(word, sort = TRUE) %>%
+  head(10)
+```
+
+| Book | Chapter | What happens | Right call? |
+|------------------|------------------|------------------------|------------------|
+| *The Great Gatsby* | 7 | The Plaza Hotel confrontation and Myrtle's death | Yes |
+| *The Sun Also Rises* | 12 | The fishing trip in the mountains, one of the happiest stretches. Top "negative" words come from Bill's "Irony and Pity" joke, plus "cold" and "falls" (waterfalls) | No |
+
+## Sentiment around each character
+
+Names aren't in any lexicon, so this scores the **sentences that mention each character** with `sentimentr`, then compares the share that read positive vs negative.
+
+| This measures | This doesn't measure |
+|------------------------|------------------------|
+| The mood of the scenes a character appears in | Whether the character is good or bad |
+| How the narrator describes them | Sentences that use "he" or "she" instead of the name |
+| How that mood changes chapter by chapter | The narrators, Nick and Jake, who are mostly "I" |
+
+```{r}
+#| label: characters
+characters <- tribble(
+  ~book,                ~character,        ~pattern,
+  "The Great Gatsby",   "Gatsby",          "\\bgatsby",
+  "The Great Gatsby",   "Daisy",           "\\bdaisy",
+  "The Great Gatsby",   "Tom",             "\\btom\\b",
+  "The Great Gatsby",   "Jordan",          "\\bjordan\\b|\\bmiss baker\\b",
+  "The Great Gatsby",   "Myrtle",          "\\bmyrtle\\b|\\bmrs\\. wilson\\b",
+  "The Great Gatsby",   "George Wilson",   "(?<!mrs\\. )\\bwilson\\b",
+  "The Great Gatsby",   "Nick (narrator)", "\\bnick\\b|\\bcarraway\\b",
+  "The Sun Also Rises", "Brett",           "\\bbrett\\b",
+  "The Sun Also Rises", "Cohn",            "\\bcohn\\b|\\brobert\\b",
+  "The Sun Also Rises", "Bill",            "\\bbill\\b",
+  "The Sun Also Rises", "Mike",            "\\bmike\\b|\\bmichael\\b",
+  "The Sun Also Rises", "Romero",          "\\bromero\\b",
+  "The Sun Also Rises", "Montoya",         "\\bmontoya\\b",
+  "The Sun Also Rises", "Jake (narrator)", "\\bjake\\b|\\bbarnes\\b"
+)
+
+new_sentences <- sentence_scores %>%
+  filter(book != "Pride & Prejudice") %>%
+  mutate(book = as.character(book), lower = str_to_lower(text))
+
+character_sentences <- characters %>%
+  inner_join(new_sentences, by = "book", relationship = "many-to-many") %>%
+  filter(str_detect(lower, pattern))
+
+character_summary <- character_sentences %>%
+  group_by(book, character) %>%
+  summarise(mentions = n(),
+            positive = mean(sentimentr > 0),
+            negative = mean(sentimentr < 0),
+            .groups = "drop") %>%
+  mutate(net = positive - negative)
+
+book_baseline <- new_sentences %>%
+  group_by(book) %>%
+  summarise(net = mean(sentimentr > 0) - mean(sentimentr < 0))
+```
+
+The bar is the share of a character's sentences that read positive minus the share that read negative. The dashed line is the whole book's average.
+
+```{r}
+#| label: character-chart
+#| fig-height: 6
+character_summary %>%
+  mutate(label = paste0(character, " (", mentions, ")"),
+         label = reorder_within(label, net, book)) %>%
+  ggplot(aes(net, label, fill = net > 0)) +
+  geom_col(show.legend = FALSE) +
+  geom_vline(data = book_baseline, aes(xintercept = net), linetype = "dashed") +
+  facet_wrap(~book, ncol = 1, scales = "free_y") +
+  scale_y_reordered() +
+  scale_fill_manual(values = c(`TRUE` = "#2f8a4f", `FALSE` = "#d62f2f")) +
+  scale_x_continuous(labels = scales::label_percent()) +
+  labs(x = "% of sentences positive minus % negative",
+       y = "Character (sentences that mention them)")
+```
+
+```{r}
+#| label: character-table
+character_summary %>%
+  arrange(book, net) %>%
+  transmute(Book = book, Character = character, Mentions = mentions,
+            `Read positive` = scales::percent(positive, accuracy = 1),
+            `Read negative` = scales::percent(negative, accuracy = 1))
+```
+
+How the mood around the central characters changes chapter by chapter (chapters with at least 5 mentions):
+
+```{r}
+#| label: character-chapters
+#| fig-height: 5.5
+central <- c("Gatsby", "Daisy", "Tom", "Brett", "Cohn", "Mike")
+
+by_chapter <- character_sentences %>%
+  filter(character %in% central) %>%
+  group_by(book, character, chapter) %>%
+  summarise(mentions = n(),
+            net = mean(sentimentr > 0) - mean(sentimentr < 0),
+            .groups = "drop") %>%
+  filter(mentions >= 5)
+
+line_labels <- by_chapter %>%
+  group_by(book, character) %>%
+  slice_max(chapter, n = 1)
+
+ggplot(by_chapter, aes(chapter, net, color = character)) +
+  geom_hline(yintercept = 0, color = "grey60") +
+  geom_line() +
+  geom_point(aes(size = mentions)) +
+  geom_text(data = line_labels, aes(label = character),
+            hjust = -0.25, size = 3.5, show.legend = FALSE) +
+  facet_wrap(~book, ncol = 1, scales = "free_x") +
+  scale_x_continuous(breaks = function(lims) seq(1, floor(lims[2] - 1.5), by = 1),
+                     expand = expansion(add = c(0.3, 1.6))) +
+  scale_y_continuous(labels = scales::label_percent()) +
+  scale_size_area(max_size = 4, guide = "none") +
+  labs(x = "Chapter", y = "% positive minus % negative") +
+  theme(legend.position = "none")
+```
+
+```{r}
+#| label: character-values
+#| include: false
+gatsby_chars <- character_summary %>% filter(book == "The Great Gatsby", !str_detect(character, "narrator"))
+sun_chars <- character_summary %>% filter(book == "The Sun Also Rises", !str_detect(character, "narrator"))
+gatsby_negative_chars <- gatsby_chars %>% filter(net < 0) %>% arrange(net) %>% pull(character)
+sun_lowest <- sun_chars %>% slice_min(net, n = 1) %>% pull(character)
+tom <- character_summary %>% filter(character == "Tom")
+cohn_late <- character_sentences %>%
+  filter(character == "Cohn") %>%
+  mutate(period = if_else(chapter >= 17, "late", "early")) %>%
+  group_by(period) %>%
+  summarise(net = mean(sentimentr > 0) - mean(sentimentr < 0))
+```
+
+-   ***Gatsby*:** the scenes around `r knitr::combine_words(gatsby_negative_chars)` lean negative. Of the sentences that mention Tom, `r scales::percent(tom$negative, accuracy = 1)` read negative and `r scales::percent(tom$positive, accuracy = 1)` positive.
+-   **After the Plaza:** from chapter 7 on, Gatsby, Daisy and Tom all fall to zero or below.
+-   ***The Sun Also Rises*:** every character falls between `r scales::percent(min(sun_chars$net), accuracy = 1)` and `r scales::percent(max(sun_chars$net), accuracy = 1)`. The lowest is `r sun_lowest`.
+-   **Cohn after the fight:** from chapter 17 on, his sentences score `r scales::percent(cohn_late$net[cohn_late$period == "late"], accuracy = 1)`, compared with `r scales::percent(cohn_late$net[cohn_late$period == "early"], accuracy = 1)` before.
+
+**Takeaway:** *Gatsby*'s negativity clusters around particular characters. *The Sun Also Rises* spreads its tone evenly across the whole group.
+
+# *Gatsby* vs *The Sun Also Rises*
+
+The book's `comparison.cloud()`, comparing the two books instead of positive and negative words. **Color = which book** (blue *Gatsby*, purple *The Sun Also Rises*), not sentiment. Bigger = used much more in that book.
+
+```{r}
+#| label: book-comparison-cloud
+#| fig-height: 7
+set.seed(607)
+tidy_new %>%
+  anti_join(stop_words, by = "word") %>%
+  count(word, book) %>%
+  acast(word ~ book, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("#2c5f8a", "#7b4fa6"),
+                   max.words = 120, title.size = 1.4)
+```
+
+```{r}
+#| label: head-to-head-values
+#| include: false
+gatsby_ch <- new_negative %>% filter(book == "The Great Gatsby") %>% pull(chapter)
+sun_ch <- new_negative %>% filter(book == "The Sun Also Rises") %>% pull(chapter)
+```
+
+| | *The Great Gatsby* | *The Sun Also Rises* |
+|------------------------|------------------------|------------------------|
+| Net sentiment per 1,000 words | `r round(gatsby_tone$net_per_1k, 1)` | `r round(sun_tone$net_per_1k, 1)` |
+| Sections that score negative | `r scales::percent(gatsby_neg_share)` | `r scales::percent(sun_neg_share)` |
+| Sentiment words per 1,000 | `r round(gatsby_tone$matched_per_1k)` | `r round(sun_tone$matched_per_1k)` |
+| Lexicon agreement | `r round(gatsby_agree, 2)` | `r round(sun_agree, 2)` |
+| Misread word | "miss" (a title) | "damned" (emphasis) |
+| Most negative chapter | `r gatsby_ch`, fits the plot | `r sun_ch`, a misread joke |
+| Characters | Negativity clusters around a few | Everyone near the book's average |
+
+**Takeaway:** same era, very different results. The author's style matters more than the decade.
+
+# How the Results Differ from the Original
+
+| Question from my approach | Austen (Chapter 2) | *Gatsby* and *The Sun Also Rises* |
+|------------------------|------------------------|------------------------|
+| Overall tone | Positive: `r round(min(austen_tone$net_per_1k), 1)` to `r round(max(austen_tone$net_per_1k), 1)` per 1,000 words | *Gatsby* `r round(gatsby_tone$net_per_1k, 1)`, *Sun* `r round(sun_tone$net_per_1k, 1)` |
+| Do the lexicons agree? | Yes: `r round(pp_agree, 2)` | `r if (max(gatsby_agree, sun_agree) < pp_agree) "Less" else "About the same"`: `r round(gatsby_agree, 2)` and `r round(sun_agree, 2)` |
+| Does sentence-level scoring change things? | Disagrees with Bing on `r scales::percent(pp_opp, accuracy = 1)` of sentences | `r scales::percent(min(new_opp), accuracy = 1)` to `r scales::percent(max(new_opp), accuracy = 1)`, and not clearly better |
+| The "miss" of the corpus | "miss" | "miss" (*Gatsby*), "damned" (*Sun*) |
+| Darkest chapter | Matches the plot in all six novels | Right for *Gatsby*, wrong for *Sun* |
+
+**Bottom line:** the Chapter 2 method holds up on a book with dark events (*Gatsby*), but struggles with Hemingway's sparse, joking dialogue. The biggest errors come from context (titles, swearing for emphasis, a running joke), which no word list can see.
+
+# Citations
+
+Silge, J., & Robinson, D. (2017). *Text mining with R: A tidy approach*. O'Reilly Media. <https://www.tidytextmining.com/sentiment.html>
+
+Silge, J., & Robinson, D. (2017). *tidy-text-mining* \[Source code for the book\]. GitHub. <https://github.com/dgrtwo/tidy-text-mining>
+
+Rinker, T. W. (2021). *sentimentr: Calculate text polarity sentiment* \[R package\]. <https://github.com/trinker/sentimentr>
+
+Nielsen, F. Å. (2011). A new ANEW: Evaluation of a word list for sentiment analysis in microblogs. *Proceedings of the ESWC2011 Workshop on Making Sense of Microposts*, 93–98. (AFINN lexicon)
+
+Hu, M., & Liu, B. (2004). Mining and summarizing customer reviews. *Proceedings of the ACM SIGKDD International Conference on Knowledge Discovery and Data Mining*, 168–177. (Bing lexicon)
+
+Mohammad, S. M., & Turney, P. D. (2013). Crowdsourcing a word–emotion association lexicon. *Computational Intelligence, 29*(3), 436–465. (NRC lexicon)
+
+Fitzgerald, F. S. (1925). *The great Gatsby*. Project Gutenberg. <https://www.gutenberg.org/ebooks/64317>
+
+Hemingway, E. (1926). *The sun also rises*. Project Gutenberg. <https://www.gutenberg.org/ebooks/67138>
+
+# AI Disclosure
+
+Claude (Anthropic) helped write and test the code in this report, including the cleaning rules for the two books, the section-size adjustment, the four-method comparison, the sentence-level comparison and the character analysis. I chose the books, the extra lexicon, the questions in my approach and the idea to analyze the characters.
+
+Anthropic. (2026). *Claude* \[Large language model\]. <https://claude.ai/>. Accessed November 8, 2026.

@@ -1,0 +1,709 @@
+---
+title: "Assignment 10B: NobelPrize.org"
+subtitle: "DATA 607 · Code Base"
+author: "Dillon Leeper"
+date: today
+date-format: "MMMM D, YYYY"
+format:
+  html:
+    theme: flatly
+    embed-resources: true
+    title-block-banner: true
+    toc: true
+    toc-location: left
+    toc-title: "Contents"
+    toc-depth: 2
+    smooth-scroll: true
+    code-fold: show
+    code-summary: "Show code"
+    code-tools:
+      source: false
+      toggle: true
+      caption: "Code"
+    code-copy: hover
+    highlight-style: github
+    df-print: kable
+    fig-align: center
+    fig-width: 8
+    fig-height: 4.5
+    fig-dpi: 150
+    include-in-header:
+      - text: |
+          <link rel="preconnect" href="https://fonts.googleapis.com">
+          <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Inter:wght@500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+          <style>
+            :root {
+              --ink: #1f2933;
+              --muted: #5f6b7a;
+              --accent: #2c5f8a;
+              --accent-soft: #e8f0f7;
+              --line: #e3e8ee;
+              --paper: #fbfaf7;
+            }
+            body {
+              font-family: "Lora", Georgia, serif;
+              font-size: 1.06rem;
+              line-height: 1.75;
+              color: var(--ink);
+              background: var(--paper);
+            }
+            h1, h2, h3, h4, .title, .subtitle, #TOC, .quarto-title-meta,
+            table, .code-tools-button, details > summary {
+              font-family: "Inter", system-ui, sans-serif;
+            }
+
+            /* title banner */
+            .quarto-title-banner {
+              background: linear-gradient(135deg, #1b3a57 0%, #2c5f8a 55%, #3f7fb0 100%) !important;
+              padding: 3.2rem 0 2.6rem !important;
+            }
+            .quarto-title-banner .title { font-weight: 700; letter-spacing: -0.02em; color: #fff; }
+            .quarto-title-banner .subtitle { color: rgba(255,255,255,0.82); font-weight: 500; font-size: 1.05rem; }
+            .quarto-title-meta-heading { color: var(--muted); text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.08em; }
+
+            /* headings */
+            h2 {
+              font-weight: 700;
+              font-size: 1.55rem;
+              color: var(--accent);
+              margin-top: 3rem;
+              padding-bottom: 0.4rem;
+              border-bottom: 2px solid var(--accent-soft);
+            }
+            h2.anchored { border-bottom: 2px solid var(--accent-soft); }
+            strong { color: #13293d; }
+
+            /* contents sidebar */
+            #TOC { font-size: 0.88rem; }
+            #TOC .nav-link { color: var(--muted); border-left: 2px solid transparent; padding-left: 0.6rem; }
+            #TOC .nav-link.active, #TOC .nav-link:hover { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+
+            /* tables */
+            table.table {
+              font-size: 0.9rem;
+              border-collapse: separate;
+              border-spacing: 0;
+              border: 1px solid var(--line);
+              border-radius: 10px;
+              overflow: hidden;
+              background: #fff;
+              box-shadow: 0 1px 3px rgba(16,24,40,0.06);
+              margin: 1.2rem 0 1.6rem;
+            }
+            table.table thead th {
+              background: var(--accent);
+              color: #fff;
+              font-weight: 600;
+              border: none;
+              padding: 0.65rem 0.9rem;
+            }
+            table.table tbody td { padding: 0.55rem 0.9rem; border-top: 1px solid var(--line); }
+            table.table tbody tr:nth-child(even) td { background: #f7f9fb; }
+            table.table tbody tr:hover td { background: var(--accent-soft); }
+
+            /* code */
+            div.sourceCode, pre.sourceCode {
+              background: #f5f7fa !important;
+              border: 1px solid var(--line);
+              border-radius: 10px;
+            }
+            code, pre { font-family: "JetBrains Mono", monospace; font-size: 0.84rem; }
+            details.code-fold > summary {
+              display: inline-block;
+              font-size: 0.78rem;
+              font-weight: 600;
+              color: var(--accent);
+              background: var(--accent-soft);
+              padding: 0.2rem 0.75rem;
+              border-radius: 999px;
+              margin-bottom: 0.4rem;
+              cursor: pointer;
+            }
+            pre:not(.sourceCode) {
+              background: #fff;
+              border-left: 3px solid var(--accent);
+              border-radius: 6px;
+              padding: 0.8rem 1rem;
+            }
+
+            /* figures and math */
+            .cell-output-display img {
+              border-radius: 10px;
+              background: #fff;
+              padding: 0.6rem;
+              box-shadow: 0 2px 10px rgba(16,24,40,0.08);
+            }
+            .math.display { overflow-x: auto; }
+
+            /* code tools dropdown */
+            .code-tools-button {
+              color: #fff !important;
+              border: 1px solid rgba(255,255,255,0.6) !important;
+              border-radius: 8px !important;
+              font-weight: 600;
+            }
+            .code-tools-button:hover { background: rgba(255,255,255,0.15) !important; }
+            .quarto-title-banner .dropdown-menu, #quarto-code-tools-menu + .dropdown-menu, .dropdown-menu {
+              background: #fff !important;
+              border: 1px solid var(--line) !important;
+              border-radius: 10px !important;
+              box-shadow: 0 8px 24px rgba(16,24,40,0.14) !important;
+              padding: 0.35rem !important;
+            }
+            .dropdown-menu .dropdown-item {
+              font-family: "Inter", system-ui, sans-serif !important;
+              font-size: 0.9rem !important;
+              font-weight: 600 !important;
+              color: var(--ink) !important;
+              border-radius: 6px;
+              padding: 0.5rem 0.9rem !important;
+            }
+            .dropdown-menu .dropdown-item:hover, .dropdown-menu .dropdown-item:focus {
+              background: var(--accent-soft) !important;
+              color: var(--accent) !important;
+            }
+
+            /* bullet lists */
+            ul li::marker { color: var(--accent); }
+
+            /* print / save as PDF: centered, no sidebar, no buttons */
+            @page { margin: 0.5in; }
+            @media print {
+              * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+              #quarto-sidebar-toc-left, #quarto-sidebar, #quarto-margin-sidebar, nav#TOC, #TOC,
+              .code-tools-button, .dropdown-menu, details.code-fold > summary, .code-copy-button {
+                display: none !important;
+              }
+              body, #quarto-content, .page-columns, .page-layout-article {
+                display: block !important;
+                background: var(--paper) !important;
+              }
+              main.content, #quarto-document-content, .quarto-title-banner .quarto-title, #title-block-header .quarto-title-meta {
+                grid-column: auto !important;
+                max-width: 7.5in !important;
+                width: 100% !important;
+                margin-left: auto !important;
+                margin-right: auto !important;
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+              }
+              #title-block-header.quarto-title-block, .quarto-title-banner, header#title-block-header .quarto-title-banner {
+                display: block !important;
+                visibility: visible !important;
+                background: #2c5f8a linear-gradient(135deg, #1b3a57 0%, #2c5f8a 55%, #3f7fb0 100%) !important;
+                background-color: #2c5f8a !important;
+                padding: 1.8rem 1.6rem 1.5rem !important;
+                margin: 0 auto 1.2rem !important;
+                max-width: 7.5in !important;
+                border-radius: 12px !important;
+              }
+              .quarto-title-banner .quarto-title, .quarto-title-banner .quarto-title > div { display: block !important; max-width: none !important; }
+              .quarto-title-banner h1, .quarto-title-banner .title,
+              .quarto-title-banner p, .quarto-title-banner .subtitle {
+                display: block !important;
+                visibility: visible !important;
+                color: #fff !important;
+                opacity: 1 !important;
+              }
+              .quarto-title-banner .title { font-size: 1.9rem !important; margin: 0 0 0.3rem !important; }
+              .quarto-title-banner .subtitle { color: rgba(255,255,255,0.85) !important; font-size: 1rem !important; margin: 0 !important; }
+              .quarto-title-meta { margin-top: 0.4rem !important; }
+              h2 { break-after: avoid; page-break-after: avoid; margin-top: 1.6rem; }
+              .cell-output-display, table, figure, img { break-inside: avoid; page-break-inside: avoid; }
+              pre, code { white-space: pre-wrap !important; word-break: break-word; }
+              .cell-output-display img { box-shadow: none; }
+            }
+          </style>
+execute:
+  warning: false
+  message: false
+editor: visual
+---
+
+## Overview
+
+| | |
+|------------------------|------------------------------------------------|
+| **Data** | Nobel Prize API v2.1, `/nobelPrizes` endpoint, pulled as JSON |
+| **Focus** | The prize itself, not the winners: when it wasn't given, what it was worth, how many people shared it, and what it was given for |
+| **Join/compare question** | Q1 compares every year and category the prize *could* have been given against the ones it *was* |
+
+## Key findings
+
+-   **Q1, The empty years:** almost two-thirds of the prizes never awarded fall during the two World Wars. Peace is withheld far more than any other category, and it's the only one withheld after 1948.
+-   **Q2, The money:** the prize lost most of its real value by 1919, stayed low for decades, peaked in 2001, and is worth a little more today than in 1901.
+-   **Q3, Crowding:** three-way splits went from almost never to about 4 in 10 prizes, so the typical winner today takes home much less than an early winner did.
+-   **Q4, The wording:** the formal "in recognition of the services he has rendered" language faded, and each category's vocabulary shifted with its field.
+
+## Setup
+
+```{r}
+#| label: setup
+library(httr2)
+library(jsonlite)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(tidytext)
+library(knitr)
+library(scales)
+
+theme_set(theme_minimal(base_size = 12))
+```
+
+## Getting the data
+
+### Request
+
+| | |
+|------------------------|------------------------------------------------|
+| Endpoint | `https://api.nobelprize.org/2.1/nobelPrizes` |
+| Key needed | No |
+| Paging | `offset` and `limit`. The first response's `meta$count` gives the total, so the code loops until it has every prize |
+| Sort | `asc`, oldest first |
+
+```{r}
+#| label: fetch
+get_page <- function(offset, limit = 100) {
+  request("https://api.nobelprize.org/2.1/nobelPrizes") |>
+    req_url_query(offset = offset, limit = limit, sort = "asc") |>
+    req_retry(max_tries = 3) |>
+    req_perform() |>
+    resp_body_json()
+}
+
+fetch_all_prizes <- function() {
+  first_page <- get_page(0)
+  total <- first_page$meta$count
+  other_pages <- lapply(seq(100, total - 1, by = 100), get_page)
+  pages <- c(list(first_page), other_pages)
+  do.call(c, lapply(pages, `[[`, "nobelPrizes"))
+}
+
+snapshot_file <- "nobel_prizes_raw.json"
+
+prizes_raw <- tryCatch(
+  fetch_all_prizes(),
+  error = function(e) {
+    message("API unavailable, using saved snapshot: ", conditionMessage(e))
+    read_json(snapshot_file)
+  }
+)
+
+write_json(prizes_raw, snapshot_file, auto_unbox = TRUE, digits = NA)
+
+length(prizes_raw)
+```
+
+The live API is tried first. Every successful pull also saves the raw JSON to `nobel_prizes_raw.json`, so the report still renders if the API is down.
+
+### What one prize looks like
+
+Each prize is a nested list. Category names come in three languages, and the laureates are a list inside the prize:
+
+```{r}
+#| label: raw-peek
+str(prizes_raw[[1]], max.level = 2, list.len = 10)
+```
+
+### Tidying
+
+Two tidy tables, built with `tidyr`'s rectangling functions:
+
+| Table | One row per | Built with |
+|------------------|------------------|------------------------|
+| `prizes` | Prize (year + category) | `hoist()` pulls fields out of each prize, including nested ones like `category$en` |
+| `prize_laureates` | Laureate per prize | `unnest_longer()` turns each prize's laureate list into rows, then `hoist()` pulls their fields |
+
+```{r}
+#| label: tidy
+prizes <- tibble(prize = prizes_raw) |>
+  hoist(prize,
+        year            = "awardYear",
+        category        = c("category", "en"),
+        amount          = "prizeAmount",
+        amount_adjusted = "prizeAmountAdjusted",
+        top_motivation  = c("topMotivation", "en"),
+        laureates       = "laureates") |>
+  select(-prize) |>
+  mutate(year = as.integer(year),
+         n_laureates = lengths(laureates))
+
+prize_laureates <- prizes |>
+  select(year, category, amount_adjusted, laureates) |>
+  unnest_longer(laureates) |>
+  hoist(laureates,
+        laureate_id = "id",
+        name        = c("knownName", "en"),
+        org_name    = c("orgName", "en"),
+        portion     = "portion",
+        motivation  = c("motivation", "en")) |>
+  select(-laureates) |>
+  mutate(name = coalesce(name, org_name),
+         share = 1 / as.numeric(str_extract(portion, "\\d+$")),
+         take = amount_adjusted * share)
+
+prizes |> select(-laureates) |> head(5)
+prize_laureates |> select(year, category, name, portion, share, motivation) |> head(5)
+```
+
+Checks before answering anything:
+
+```{r}
+#| label: checks
+share_check <- prize_laureates |>
+  group_by(year, category) |>
+  summarise(total_share = sum(share), .groups = "drop")
+
+tibble(
+  Check = c("Prizes pulled", "Laureate rows",
+            "Prizes with no laureates", "Prizes whose shares add up to 1"),
+  Result = c(nrow(prizes), nrow(prize_laureates),
+             sum(prizes$n_laureates == 0),
+             paste(sum(abs(share_check$total_share - 1) < 1e-9), "of", nrow(share_check)))
+)
+```
+
+Amounts are in Swedish kronor (SEK). `prizeAmountAdjusted` is the amount in today's kronor, which makes years comparable.
+
+# Q1: The empty years
+
+**Which years and categories had no prize awarded, and why do they cluster?**
+
+**Approach:** build every year-and-category combination the prize could have been given (Economics only from 1969), then `anti_join()` it against the prizes that actually have laureates. Whatever is left was never awarded.
+
+```{r}
+#| label: q1-join
+categories <- tibble(
+  category = c("Physics", "Chemistry", "Physiology or Medicine",
+               "Literature", "Peace", "Economic Sciences"),
+  first_year = c(rep(1901L, 5), 1969L)
+)
+
+all_possible <- categories |>
+  cross_join(tibble(year = 1901:max(prizes$year))) |>
+  filter(year >= first_year)
+
+awarded <- prizes |> filter(n_laureates > 0)
+
+not_awarded <- all_possible |>
+  anti_join(awarded, by = c("year", "category")) |>
+  mutate(period = case_when(
+    between(year, 1914, 1918) ~ "World War I (1914-1918)",
+    between(year, 1939, 1945) ~ "World War II (1939-1945)",
+    TRUE ~ "Other years"
+  ))
+
+missing_from_api <- all_possible |> anti_join(prizes, by = c("year", "category"))
+```
+
+-   **Possible prizes:** `r nrow(all_possible)`
+-   **Awarded:** `r nrow(awarded)`
+-   **Never awarded:** **`r nrow(not_awarded)`**
+-   **Possible prizes missing from the API entirely:** `r nrow(missing_from_api)`. The API lists the empty years too, with a note like "No Nobel Prize was awarded this year," so the join and the API agree.
+
+```{r}
+#| label: q1-chart
+#| fig-height: 4
+category_order <- c("Economic Sciences", "Peace", "Literature",
+                    "Physiology or Medicine", "Chemistry", "Physics")
+
+all_possible |>
+  left_join(not_awarded |> mutate(gap = TRUE) |> select(year, category, gap),
+            by = c("year", "category")) |>
+  mutate(status = if_else(is.na(gap), "Awarded", "Not awarded"),
+         category = factor(category, levels = category_order)) |>
+  ggplot(aes(year, category, fill = status)) +
+  annotate("rect", xmin = 1913.5, xmax = 1918.5, ymin = -Inf, ymax = Inf, fill = "#f3e3c3") +
+  annotate("rect", xmin = 1938.5, xmax = 1945.5, ymin = -Inf, ymax = Inf, fill = "#f3e3c3") +
+  geom_tile(height = 0.75) +
+  annotate("text", x = c(1916, 1942), y = 6.65, label = c("WWI", "WWII"),
+           size = 3.5, fontface = "bold", color = "#8a6d2f") +
+  scale_fill_manual(values = c(Awarded = "#d5dce4", `Not awarded` = "#c0392b")) +
+  scale_x_continuous(breaks = seq(1900, 2025, by = 25)) +
+  coord_cartesian(clip = "off") +
+  labs(x = NULL, y = NULL, fill = NULL) +
+  theme(legend.position = "top", panel.grid = element_blank())
+```
+
+```{r}
+#| label: q1-tables
+not_awarded |>
+  count(period, name = "Prizes not awarded") |>
+  mutate(Share = percent(`Prizes not awarded` / sum(`Prizes not awarded`), accuracy = 1)) |>
+  rename(Period = period)
+
+not_awarded |>
+  group_by(Category = category) |>
+  summarise(`Not awarded` = n(),
+            `During a World War` = sum(period != "Other years"),
+            `Last time` = max(year)) |>
+  arrange(desc(`Not awarded`))
+```
+
+```{r}
+#| label: q1-values
+#| include: false
+war_share <- mean(not_awarded$period != "Other years")
+peace_after_1948 <- not_awarded |> filter(year > 1948) |> pull(year)
+other_after_1948 <- not_awarded |> filter(year > 1948, category != "Peace") |> nrow()
+```
+
+**Answer:**
+
+-   **`r percent(war_share, accuracy = 1)`** of the missing prizes fall during the two World Wars.
+-   Outside the wars, most gaps are in the 1920s and early 1930s.
+-   **Peace** is withheld the most, and after 1948 it's the only category ever skipped: `r knitr::combine_words(peace_after_1948)`.
+-   **Economics** has never been skipped.
+
+# Q2: The money over time
+
+**How has the real value of the prize changed since 1901?**
+
+**Approach:** plot `prizeAmountAdjusted`, the prize in today's kronor, for each year. All categories get the same amount in a given year, so there's one value per year.
+
+```{r}
+#| label: q2-data
+money <- prizes |>
+  group_by(year) |>
+  summarise(nominal = median(amount),
+            adjusted = median(amount_adjusted))
+
+milestones <- bind_rows(
+  money |> filter(year == min(year)) |> mutate(label = "First prize", vjust = -0.5),
+  money |> slice_min(adjusted, n = 1) |> mutate(label = "Lowest", vjust = 1.4),
+  money |> slice_max(adjusted, n = 1) |> mutate(label = "Highest", vjust = -0.5),
+  money |> filter(year == max(year)) |> mutate(label = "Latest", vjust = -0.5)
+)
+```
+
+```{r}
+#| label: q2-chart
+#| fig-height: 4.5
+ggplot(money, aes(year, adjusted / 1e6)) +
+  geom_line(color = "#2c5f8a", linewidth = 0.9) +
+  geom_point(data = milestones, size = 3, color = "#c0392b") +
+  geom_text(data = milestones,
+            aes(label = paste0(label, "\n", year, ": ", round(adjusted / 1e6, 1), "M"),
+                vjust = vjust),
+            size = 3.2, lineheight = 0.9) +
+  scale_y_continuous(limits = c(0, 19), labels = label_number(suffix = "M")) +
+  scale_x_continuous(breaks = seq(1900, 2025, by = 25)) +
+  labs(x = NULL, y = "Prize value in today's kronor (SEK)")
+```
+
+```{r}
+#| label: q2-table
+milestones |>
+  transmute(Milestone = label, Year = year,
+            `Actual amount (SEK)` = comma(nominal),
+            `In today's kronor` = comma(adjusted),
+            `vs. 1901` = percent(adjusted / money$adjusted[money$year == min(money$year)], accuracy = 1))
+```
+
+```{r}
+#| label: q2-values
+#| include: false
+first_value <- money$adjusted[money$year == min(money$year)]
+low <- milestones |> filter(label == "Lowest")
+high <- milestones |> filter(label == "Highest")
+latest <- milestones |> filter(label == "Latest")
+cut_2012 <- money |> filter(year %in% 2011:2012)
+recovered_year <- money |> filter(year > low$year, adjusted >= first_value) |> slice_min(year, n = 1) |> pull(year)
+```
+
+**Answer:**
+
+-   **A fast collapse:** by `r low$year`, the prize was worth `r percent(low$adjusted / first_value, accuracy = 1)` of its 1901 value.
+-   **A long low:** it didn't get back to its 1901 value until `r recovered_year`.
+-   **The peak:** `r high$year`, at `r round(high$adjusted / 1e6, 1)`M kronor.
+-   **A cut:** in 2012 the actual amount dropped from `r comma(cut_2012$nominal[cut_2012$year == 2011])` to `r comma(cut_2012$nominal[cut_2012$year == 2012])` kronor.
+-   **Today:** `r round(latest$adjusted / 1e6, 1)`M kronor, `r percent(latest$adjusted / first_value - 1, accuracy = 1)` more than the first prize in real terms.
+
+# Q3: Crowding
+
+**Are prizes being shared by more winners over time, and how much does each winner get as a result?**
+
+**Approach:** count laureates per awarded prize by decade. Then join each laureate's `portion` (1, 1/2, 1/3 or 1/4) to the prize's adjusted amount to get what each winner actually took home.
+
+```{r}
+#| label: q3-split
+split_by_decade <- awarded |>
+  mutate(decade = year %/% 10 * 10,
+         winners = factor(n_laureates, levels = 3:1,
+                          labels = c("Three winners", "Two winners", "One winner"))) |>
+  count(decade, winners) |>
+  group_by(decade) |>
+  mutate(share = n / sum(n)) |>
+  ungroup()
+
+ggplot(split_by_decade, aes(decade, share, fill = winners)) +
+  geom_col(width = 8) +
+  scale_fill_manual(values = c(`One winner` = "#c9d6e3", `Two winners` = "#6f9cc3",
+                               `Three winners` = "#1b3a57")) +
+  scale_y_continuous(labels = label_percent()) +
+  scale_x_continuous(breaks = seq(1900, 2020, by = 20), labels = function(x) paste0(x, "s")) +
+  labs(x = NULL, y = "Share of prizes awarded", fill = NULL) +
+  theme(legend.position = "top")
+```
+
+By category, average winners per prize then and now:
+
+```{r}
+#| label: q3-category
+awarded |>
+  mutate(era = case_when(year < 1950 ~ "1901-1949",
+                         year >= 2000 ~ "2000-today",
+                         TRUE ~ "1950-1999")) |>
+  group_by(Category = category, era) |>
+  summarise(avg = round(mean(n_laureates), 2), .groups = "drop") |>
+  pivot_wider(names_from = era, values_from = avg) |>
+  select(Category, `1901-1949`, `1950-1999`, `2000-today`) |>
+  arrange(desc(`2000-today`)) |>
+  mutate(across(-Category, ~ if_else(is.na(.x), "Not yet created", format(.x, nsmall = 2))))
+```
+
+What each winner takes home, compared with the full prize:
+
+```{r}
+#| label: q3-take
+#| fig-height: 4.5
+take_by_decade <- prize_laureates |>
+  mutate(decade = year %/% 10 * 10) |>
+  group_by(decade) |>
+  summarise(`Full prize` = median(amount_adjusted),
+            `Typical winner's share` = median(take)) |>
+  pivot_longer(-decade, names_to = "measure", values_to = "value")
+
+ggplot(take_by_decade, aes(decade, value / 1e6, color = measure)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c(`Full prize` = "#9aa5b1", `Typical winner's share` = "#c0392b")) +
+  scale_y_continuous(limits = c(0, NA), labels = label_number(suffix = "M")) +
+  scale_x_continuous(breaks = seq(1900, 2020, by = 20), labels = function(x) paste0(x, "s")) +
+  labs(x = NULL, y = "Today's kronor (SEK), median", color = NULL) +
+  theme(legend.position = "top")
+```
+
+```{r}
+#| label: q3-values
+#| include: false
+early <- awarded |> filter(year < 1940)
+recent <- awarded |> filter(year >= 2000)
+take_wide <- take_by_decade |> pivot_wider(names_from = measure, values_from = value)
+take_first <- take_wide |> slice_min(decade, n = 1)
+take_last <- take_wide |> slice_max(decade, n = 1)
+first_three <- awarded |>
+  filter(n_laureates == 3) |>
+  group_by(category) |>
+  summarise(first = min(year))
+never_three <- setdiff(categories$category, first_three$category)
+```
+
+**Answer:**
+
+-   **Splitting is now normal:** `r percent(mean(early$n_laureates == 3), accuracy = 1)` of prizes before 1940 went to three people, compared with `r percent(mean(recent$n_laureates == 3), accuracy = 1)` since 2000. Solo prizes fell from `r percent(mean(early$n_laureates == 1), accuracy = 1)` to `r percent(mean(recent$n_laureates == 1), accuracy = 1)`.
+-   **It's the sciences:** Physics, Chemistry and Medicine now average more than two winners per prize. `r knitr::combine_words(never_three)` `r if (length(never_three) == 1) "has" else "have"` never been split three ways.
+-   **Smaller checks:** the typical winner in the `r take_last$decade`s takes home `r round(take_last[["Typical winner's share"]] / 1e6, 1)`M kronor, compared with `r round(take_first[["Typical winner's share"]] / 1e6, 1)`M in the `r take_first$decade`s, even though the full prize is worth about the same.
+
+# Q4: What the prize rewards
+
+**How has the wording of the prize motivations changed over the century?**
+
+**Approach:** each laureate has a motivation ("for the discovery of..."). Winners who share the same motivation are counted once, then the text is split into words with `unnest_tokens()`, as in 10A.
+
+```{r}
+#| label: q4-data
+motivations <- prize_laureates |>
+  distinct(year, category, motivation) |>
+  mutate(decade = year %/% 10 * 10,
+         era = case_when(year < 1950 ~ "1901-1949",
+                         year >= 2000 ~ "2000-today",
+                         TRUE ~ "1950-1999"))
+
+motivation_words <- motivations |>
+  unnest_tokens(word, motivation) |>
+  anti_join(stop_words, by = "word")
+```
+
+How often key words appear, by decade:
+
+```{r}
+#| label: q4-keywords
+#| fig-height: 4.5
+keywords <- c(`"recognition"` = "recognition",
+              `"discover"` = "discover",
+              `"develop"` = "develop",
+              `"contribution"` = "contribution")
+
+keyword_trend <- motivations |>
+  mutate(text = str_to_lower(motivation)) |>
+  cross_join(tibble(keyword = names(keywords), pattern = unname(keywords))) |>
+  mutate(has_word = str_detect(text, pattern)) |>
+  group_by(decade, keyword) |>
+  summarise(share = mean(has_word), .groups = "drop") |>
+  mutate(keyword = factor(keyword, levels = names(keywords)))
+
+ggplot(keyword_trend, aes(decade, share, color = keyword)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  scale_color_manual(values = c("#9aa5b1", "#2c5f8a", "#c0392b", "#d4a017")) +
+  scale_y_continuous(labels = label_percent()) +
+  scale_x_continuous(breaks = seq(1900, 2020, by = 20), labels = function(x) paste0(x, "s")) +
+  labs(x = NULL, y = "Share of motivations containing the word", color = NULL) +
+  theme(legend.position = "top")
+```
+
+Top words in each category, then and now (numbers are how many motivations use the word):
+
+```{r}
+#| label: q4-top-words
+motivation_words |>
+  filter(era != "1950-1999") |>
+  count(category, era, word) |>
+  group_by(category, era) |>
+  slice_max(n, n = 5, with_ties = FALSE) |>
+  summarise(words = paste0(word, " (", n, ")", collapse = ", "), .groups = "drop") |>
+  pivot_wider(names_from = era, values_from = words, values_fill = "(category didn't exist)") |>
+  rename(Category = category)
+```
+
+```{r}
+#| label: q4-values
+#| include: false
+kw_wide <- keyword_trend |>
+  mutate(keyword = str_remove_all(keyword, '"')) |>
+  pivot_wider(names_from = keyword, values_from = share)
+rec_first <- kw_wide |> slice_min(decade, n = 1)
+rec_last <- kw_wide |> slice_max(decade, n = 1)
+disc_peak <- kw_wide |> slice_max(discover, n = 1)
+```
+
+**Answer:**
+
+-   **The formal language faded:** "recognition" appears in `r percent(rec_first$recognition, accuracy = 1)` of motivations in the `r rec_first$decade`s and `r percent(rec_last$recognition, accuracy = 1)` in the `r rec_last$decade`s. Early prizes were "in recognition of the extraordinary services he has rendered." Today's just say "for" what was done.
+-   **Discovery is still the core of science prizes.** It peaked in the `r disc_peak$decade`s (`r percent(disc_peak$discover, accuracy = 1)` of motivations) and is still among the top words in Physics and Medicine.
+-   **"Develop" grew,** especially in Chemistry, where "development" is now the top word: the prize increasingly rewards building methods and tools, not just finding things.
+-   **Each field shifted:**
+    -   **Peace** moved from "war," "nations" and "international" to "rights," "democracy" and "human."
+    -   **Literature** kept "poetic" but traded "art" and "poetry" for "contemporary" and "experience."
+
+# Summary
+
+| Question | Answer |
+|------------------------|------------------------------------------------|
+| **Q1** The empty years | `r nrow(not_awarded)` prizes never awarded, `r percent(war_share, accuracy = 1)` during the World Wars. Peace is skipped the most and is the only one skipped after 1948 |
+| **Q2** The money | Fell to `r percent(low$adjusted / first_value, accuracy = 1)` of its 1901 value by `r low$year`, recovered in `r recovered_year`, peaked in `r high$year`, now `r round(latest$adjusted / 1e6, 1)`M kronor |
+| **Q3** Crowding | Three-way splits: `r percent(mean(early$n_laureates == 3), accuracy = 1)` before 1940, `r percent(mean(recent$n_laureates == 3), accuracy = 1)` since 2000. The typical winner's share is less than half what it was |
+| **Q4** The wording | From formal "recognition" to plain "for...". "Development" became Chemistry's top word; Peace moved toward human rights and democracy |
+
+# Data Source
+
+Nobel Prize Outreach. (2026). *Nobel Prize API v2.1* \[Data set\]. Nobel Prize Developer Zone. <https://www.nobelprize.org/about/developer-zone-2/>. Accessed November 8, 2026. Terms of use: <https://www.nobelprize.org/about/terms-of-use-for-api-nobelprize-org-and-data-nobelprize-org/>
+
+# AI Disclosure
+
+Claude (Anthropic) helped write and test the code in this report: the paged API requests, the rectangling of the nested JSON, the four analyses and the charts. I chose the four questions in my approach.
+
+Anthropic. (2026). *Claude* \[Large language model\]. <https://claude.ai/>. Accessed November 8, 2026.
