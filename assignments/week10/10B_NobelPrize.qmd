@@ -498,6 +498,33 @@ ggplot(money, aes(year, adjusted)) +
   labs(x = NULL, y = "Prize value in today's US dollars")
 ```
 
+**Paid vs. worth.** The chart above is adjusted for inflation. Here it is next to the amount actually paid each year, unadjusted. The two are in different currencies of different eras, so both are shown as a multiple of the 1901 prize (1901 = 1x):
+
+```{r}
+#| label: q2-paid-vs-worth
+#| fig-height: 4.5
+growth <- money |>
+  mutate(`Amount paid at the time` = nominal / nominal[year == min(year)],
+         `Worth in today's money` = adjusted / adjusted[year == min(year)]) |>
+  select(year, `Amount paid at the time`, `Worth in today's money`) |>
+  pivot_longer(-year, names_to = "measure", values_to = "multiple")
+
+growth_ends <- growth |> filter(year == max(year))
+
+ggplot(growth, aes(year, multiple, color = measure)) +
+  geom_hline(yintercept = 1, color = "grey60", linetype = "dashed") +
+  geom_line(linewidth = 1) +
+  geom_text(data = growth_ends, aes(label = paste0(round(multiple, 1), "x")),
+            hjust = -0.2, size = 3.5, show.legend = FALSE) +
+  scale_color_manual(values = c(`Amount paid at the time` = "#c0392b",
+                                `Worth in today's money` = "#2c5f8a")) +
+  scale_y_log10(breaks = c(0.25, 0.5, 1, 2, 5, 10, 25, 50, 100),
+                labels = function(x) paste0(x, "x")) +
+  scale_x_continuous(breaks = seq(1900, 2025, by = 25), expand = expansion(add = c(2, 10))) +
+  labs(x = NULL, y = "Multiple of the 1901 prize (log scale)", color = NULL) +
+  theme(legend.position = "top")
+```
+
 ```{r}
 #| label: q2-table
 milestones |>
@@ -524,6 +551,7 @@ recovered_year <- money |> filter(year > low$year, adjusted >= first_value) |> s
 -   **A long low:** it didn't get back to its 1901 value until `r recovered_year`.
 -   **The peak:** `r high$year`, at `r usd(high$adjusted)` in today's dollars.
 -   **A cut:** in 2012 the amount paid dropped from `r comma(cut_2012$nominal[cut_2012$year == 2011])` to `r comma(cut_2012$nominal[cut_2012$year == 2012])` kronor.
+-   **On paper vs. in reality:** the amount paid grew `r round(latest$nominal / money$nominal[money$year == min(money$year)])`x since 1901, but after inflation the prize is worth only `r round(latest$adjusted / first_value, 1)`x what it was.
 -   **Today:** `r usd(latest$adjusted)`, `r percent(latest$adjusted / first_value - 1, accuracy = 1)` more than the first prize in real terms (1901's prize is worth `r usd(first_value)` today).
 
 # Q3: Crowding
