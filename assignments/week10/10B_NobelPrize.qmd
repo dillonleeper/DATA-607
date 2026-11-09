@@ -318,6 +318,10 @@ Two tidy tables, built with `tidyr`'s rectangling functions:
 
 ```{r}
 #| label: tidy
+sek_per_usd <- 9.89  # Swedish kronor per US dollar, early November 2026 (see Data Source)
+usd <- function(x) vapply(x, function(v) dollar(v, accuracy = if (v < 1e6) 1 else 0.1,
+                                                 scale_cut = cut_short_scale()), "")
+
 prizes <- tibble(prize = prizes_raw) |>
   hoist(prize,
         year            = "awardYear",
@@ -328,10 +332,11 @@ prizes <- tibble(prize = prizes_raw) |>
         laureates       = "laureates") |>
   select(-prize) |>
   mutate(year = as.integer(year),
-         n_laureates = lengths(laureates))
+         n_laureates = lengths(laureates),
+         value_usd = amount_adjusted / sek_per_usd)
 
 prize_laureates <- prizes |>
-  select(year, category, amount_adjusted, laureates) |>
+  select(year, category, value_usd, laureates) |>
   unnest_longer(laureates) |>
   hoist(laureates,
         laureate_id = "id",
@@ -342,7 +347,7 @@ prize_laureates <- prizes |>
   select(-laureates) |>
   mutate(name = coalesce(name, org_name),
          share = 1 / as.numeric(str_extract(portion, "\\d+$")),
-         take = amount_adjusted * share)
+         take = value_usd * share)
 
 prizes |> select(-laureates) |> head(5)
 prize_laureates |> select(year, category, name, portion, share, motivation) |> head(5)
@@ -365,7 +370,7 @@ tibble(
 )
 ```
 
-Amounts are in Swedish kronor (SEK). `prizeAmountAdjusted` is the amount in today's kronor, which makes years comparable.
+**Money:** the API reports amounts in Swedish kronor (SEK), the currency the Nobel Foundation pays in. `prizeAmountAdjusted` is each prize in today's kronor, adjusted for inflation, so years compare fairly. I convert it to **today's US dollars** at `r sek_per_usd` kronor per dollar (`value_usd`). `prizeAmount`, what was actually paid at the time, stays in kronor, since converting a 1901 payment at today's exchange rate wouldn't mean anything.
 
 # Q1: The empty years
 
@@ -461,14 +466,14 @@ other_after_1948 <- not_awarded |> filter(year > 1948, category != "Peace") |> n
 
 **How has the real value of the prize changed since 1901?**
 
-**Approach:** plot `prizeAmountAdjusted`, the prize in today's kronor, for each year. All categories get the same amount in a given year, so there's one value per year.
+**Approach:** plot each year's prize in today's US dollars (`value_usd`). All categories get the same amount in a given year, so there's one value per year.
 
 ```{r}
 #| label: q2-data
 money <- prizes |>
   group_by(year) |>
   summarise(nominal = median(amount),
-            adjusted = median(amount_adjusted))
+            adjusted = median(value_usd))
 
 milestones <- bind_rows(
   money |> filter(year == min(year)) |> mutate(label = "First prize", vjust = -0.5),
@@ -481,24 +486,24 @@ milestones <- bind_rows(
 ```{r}
 #| label: q2-chart
 #| fig-height: 4.5
-ggplot(money, aes(year, adjusted / 1e6)) +
+ggplot(money, aes(year, adjusted)) +
   geom_line(color = "#2c5f8a", linewidth = 0.9) +
   geom_point(data = milestones, size = 3, color = "#c0392b") +
   geom_text(data = milestones,
-            aes(label = paste0(label, "\n", year, ": ", round(adjusted / 1e6, 1), "M"),
+            aes(label = paste0(label, "\n", year, ": ", usd(adjusted)),
                 vjust = vjust),
             size = 3.2, lineheight = 0.9) +
-  scale_y_continuous(limits = c(0, 19), labels = label_number(suffix = "M")) +
-  scale_x_continuous(breaks = seq(1900, 2025, by = 25)) +
-  labs(x = NULL, y = "Prize value in today's kronor (SEK)")
+  scale_y_continuous(limits = c(0, 1.95e6), labels = label_dollar(scale_cut = cut_short_scale())) +
+  scale_x_continuous(breaks = seq(1900, 2025, by = 25), expand = expansion(add = 7)) +
+  labs(x = NULL, y = "Prize value in today's US dollars")
 ```
 
 ```{r}
 #| label: q2-table
 milestones |>
   transmute(Milestone = label, Year = year,
-            `Actual amount (SEK)` = comma(nominal),
-            `In today's kronor` = comma(adjusted),
+            `Amount paid at the time (SEK)` = comma(nominal),
+            `In today's US dollars` = dollar(adjusted, accuracy = 1),
             `vs. 1901` = percent(adjusted / money$adjusted[money$year == min(money$year)], accuracy = 1))
 ```
 
@@ -517,9 +522,9 @@ recovered_year <- money |> filter(year > low$year, adjusted >= first_value) |> s
 
 -   **A fast collapse:** by `r low$year`, the prize was worth `r percent(low$adjusted / first_value, accuracy = 1)` of its 1901 value.
 -   **A long low:** it didn't get back to its 1901 value until `r recovered_year`.
--   **The peak:** `r high$year`, at `r round(high$adjusted / 1e6, 1)`M kronor.
--   **A cut:** in 2012 the actual amount dropped from `r comma(cut_2012$nominal[cut_2012$year == 2011])` to `r comma(cut_2012$nominal[cut_2012$year == 2012])` kronor.
--   **Today:** `r round(latest$adjusted / 1e6, 1)`M kronor, `r percent(latest$adjusted / first_value - 1, accuracy = 1)` more than the first prize in real terms.
+-   **The peak:** `r high$year`, at `r usd(high$adjusted)` in today's dollars.
+-   **A cut:** in 2012 the amount paid dropped from `r comma(cut_2012$nominal[cut_2012$year == 2011])` to `r comma(cut_2012$nominal[cut_2012$year == 2012])` kronor.
+-   **Today:** `r usd(latest$adjusted)`, `r percent(latest$adjusted / first_value - 1, accuracy = 1)` more than the first prize in real terms (1901's prize is worth `r usd(first_value)` today).
 
 # Q3: Crowding
 
@@ -572,17 +577,17 @@ What each winner takes home, compared with the full prize:
 take_by_decade <- prize_laureates |>
   mutate(decade = year %/% 10 * 10) |>
   group_by(decade) |>
-  summarise(`Full prize` = median(amount_adjusted),
+  summarise(`Full prize` = median(value_usd),
             `Typical winner's share` = median(take)) |>
   pivot_longer(-decade, names_to = "measure", values_to = "value")
 
-ggplot(take_by_decade, aes(decade, value / 1e6, color = measure)) +
+ggplot(take_by_decade, aes(decade, value, color = measure)) +
   geom_line(linewidth = 1) +
   geom_point(size = 2) +
   scale_color_manual(values = c(`Full prize` = "#9aa5b1", `Typical winner's share` = "#c0392b")) +
-  scale_y_continuous(limits = c(0, NA), labels = label_number(suffix = "M")) +
+  scale_y_continuous(limits = c(0, NA), labels = label_dollar(scale_cut = cut_short_scale())) +
   scale_x_continuous(breaks = seq(1900, 2020, by = 20), labels = function(x) paste0(x, "s")) +
-  labs(x = NULL, y = "Today's kronor (SEK), median", color = NULL) +
+  labs(x = NULL, y = "Today's US dollars, median", color = NULL) +
   theme(legend.position = "top")
 ```
 
@@ -605,7 +610,7 @@ never_three <- setdiff(categories$category, first_three$category)
 
 -   **Splitting is now normal:** `r percent(mean(early$n_laureates == 3), accuracy = 1)` of prizes before 1940 went to three people, compared with `r percent(mean(recent$n_laureates == 3), accuracy = 1)` since 2000. Solo prizes fell from `r percent(mean(early$n_laureates == 1), accuracy = 1)` to `r percent(mean(recent$n_laureates == 1), accuracy = 1)`.
 -   **It's the sciences:** Physics, Chemistry and Medicine now average more than two winners per prize. `r knitr::combine_words(never_three)` `r if (length(never_three) == 1) "has" else "have"` never been split three ways.
--   **Smaller checks:** the typical winner in the `r take_last$decade`s takes home `r round(take_last[["Typical winner's share"]] / 1e6, 1)`M kronor, compared with `r round(take_first[["Typical winner's share"]] / 1e6, 1)`M in the `r take_first$decade`s, even though the full prize is worth about the same.
+-   **Smaller checks:** the typical winner in the `r take_last$decade`s takes home `r usd(take_last[["Typical winner's share"]])`, compared with `r usd(take_first[["Typical winner's share"]])` in the `r take_first$decade`s, even though the full prize is worth about the same.
 
 # Q4: What the prize rewards
 
@@ -694,13 +699,15 @@ disc_peak <- kw_wide |> slice_max(discover, n = 1)
 | Question | Answer |
 |------------------------|------------------------------------------------|
 | **Q1** The empty years | `r nrow(not_awarded)` prizes never awarded, `r percent(war_share, accuracy = 1)` during the World Wars. Peace is skipped the most and is the only one skipped after 1948 |
-| **Q2** The money | Fell to `r percent(low$adjusted / first_value, accuracy = 1)` of its 1901 value by `r low$year`, recovered in `r recovered_year`, peaked in `r high$year`, now `r round(latest$adjusted / 1e6, 1)`M kronor |
+| **Q2** The money | Fell to `r percent(low$adjusted / first_value, accuracy = 1)` of its 1901 value by `r low$year`, recovered in `r recovered_year`, peaked in `r high$year`, now `r usd(latest$adjusted)` in today's dollars |
 | **Q3** Crowding | Three-way splits: `r percent(mean(early$n_laureates == 3), accuracy = 1)` before 1940, `r percent(mean(recent$n_laureates == 3), accuracy = 1)` since 2000. The typical winner's share is less than half what it was |
 | **Q4** The wording | From formal "recognition" to plain "for...". "Development" became Chemistry's top word; Peace moved toward human rights and democracy |
 
 # Data Source
 
 Nobel Prize Outreach. (2026). *Nobel Prize API v2.1* \[Data set\]. Nobel Prize Developer Zone. <https://www.nobelprize.org/about/developer-zone-2/>. Accessed November 8, 2026. Terms of use: <https://www.nobelprize.org/about/terms-of-use-for-api-nobelprize-org-and-data-nobelprize-org/>
+
+Exchange rate: USD/SEK 9.89, early November 2026. Pound Sterling Live (Barchart data). <https://www.poundsterlinglive.com/data/currencies/usd-pairs/USDSEK-exchange-rate>. Accessed November 8, 2026.
 
 # AI Disclosure
 
