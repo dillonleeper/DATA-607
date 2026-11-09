@@ -349,7 +349,13 @@ prize_laureates <- prizes |>
          share = 1 / as.numeric(str_extract(portion, "\\d+$")),
          take = value_usd * share)
 
-prizes |> select(-laureates) |> head(5)
+prizes |>
+  head(5) |>
+  transmute(Year = year, Category = category,
+            `Paid then (SEK)` = comma(amount),
+            `Worth today (SEK)` = comma(amount_adjusted),
+            `Worth today (USD)` = dollar(value_usd, accuracy = 1),
+            Winners = n_laureates)
 prize_laureates |> select(year, category, name, portion, share, motivation) |> head(5)
 ```
 
@@ -498,15 +504,20 @@ ggplot(money, aes(year, adjusted)) +
   labs(x = NULL, y = "Prize value in today's US dollars")
 ```
 
-**Paid vs. worth.** The chart above is adjusted for inflation. Here it is next to the amount actually paid each year, unadjusted. The two are in different currencies of different eras, so both are shown as a multiple of the 1901 prize (1901 = 1x):
+**Paid vs. worth.** How much bigger is the prize than in 1901? There are two ways to answer:
+
+-   **Red, kronor on the check:** the amount paid, with no inflation adjustment
+-   **Blue, buying power:** what that amount can buy, adjusted for inflation (the chart above)
+
+Both are shown as "times the 1901 prize," so 1x means the same as 1901 and 2x means double:
 
 ```{r}
 #| label: q2-paid-vs-worth
 #| fig-height: 4.5
 growth <- money |>
-  mutate(`Amount paid at the time` = nominal / nominal[year == min(year)],
-         `Worth in today's money` = adjusted / adjusted[year == min(year)]) |>
-  select(year, `Amount paid at the time`, `Worth in today's money`) |>
+  mutate(`Kronor on the check` = nominal / nominal[year == min(year)],
+         `Buying power` = adjusted / adjusted[year == min(year)]) |>
+  select(year, `Kronor on the check`, `Buying power`) |>
   pivot_longer(-year, names_to = "measure", values_to = "multiple")
 
 growth_ends <- growth |> filter(year == max(year))
@@ -516,14 +527,16 @@ ggplot(growth, aes(year, multiple, color = measure)) +
   geom_line(linewidth = 1) +
   geom_text(data = growth_ends, aes(label = paste0(round(multiple, 1), "x")),
             hjust = -0.2, size = 3.5, show.legend = FALSE) +
-  scale_color_manual(values = c(`Amount paid at the time` = "#c0392b",
-                                `Worth in today's money` = "#2c5f8a")) +
+  scale_color_manual(values = c(`Kronor on the check` = "#c0392b",
+                                `Buying power` = "#2c5f8a")) +
   scale_y_log10(breaks = c(0.25, 0.5, 1, 2, 5, 10, 25, 50, 100),
                 labels = function(x) paste0(x, "x")) +
   scale_x_continuous(breaks = seq(1900, 2025, by = 25), expand = expansion(add = c(2, 10))) +
-  labs(x = NULL, y = "Multiple of the 1901 prize (log scale)", color = NULL) +
+  labs(x = NULL, y = "Times the 1901 prize (log scale)", color = NULL) +
   theme(legend.position = "top")
 ```
+
+**Takeaway:** the check is about 80 times bigger than in 1901, but prices rose almost as much, so its buying power is only about 1.1 times the first prize. For most of the 20th century (the blue line below 1x), the prize bought far less than it did in 1901.
 
 ```{r}
 #| label: q2-table
